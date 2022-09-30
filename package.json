@@ -21,7 +21,9 @@
     "build": "pkg-utils build --tsconfig tsconfig.dist.json",
     "prebuild": "rimraf dist coverage",
     "lint": "eslint . && tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "posttest": "npm run lint",
+    "prepublishOnly": "npm run build"
   },
   "repository": {
     "type": "git",
