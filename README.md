@@ -1,5 +1,7 @@
 # eventsource-parser
 
+[![npm version](https://img.shields.io/npm/v/eventsource-parser.svg?style=flat-square)](http://browsenpm.org/package/eventsource-parser)[![npm bundle size](https://img.shields.io/bundlephobia/minzip/eventsource-parser?style=flat-square)](https://bundlephobia.com/result?p=eventsource-parser)
+
 A streaming parser for [server-sent events/eventsource](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events), without any assumptions about how the actual stream of data is retrieved. It is intended to be a building block for clients and polyfills in javascript environments such as browsers, node.js and deno.
 
 You create an instance of the parser, and _feed_ it chunks of data - partial or complete, and the parse emits parsed messages once it receives a complete message.
