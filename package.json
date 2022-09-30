@@ -1,0 +1,90 @@
+{
+  "name": "eventsource-parser",
+  "version": "0.0.1",
+  "description": "Streaming, source-agnostic EventSource/Server-Sent Events parser",
+  "sideEffects": false,
+  "type": "commonjs",
+  "source": "./src/index.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "source": "./src/index.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "pkg-utils build --tsconfig tsconfig.dist.json",
+    "prebuild": "rimraf dist coverage",
+    "lint": "eslint . && tsc --noEmit",
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/rexxars/eventsource-parser.git"
+  },
+  "keywords": [
+    "sse",
+    "eventsource",
+    "server-sent-events"
+  ],
+  "author": "Espen Hovlandsdal <espen@hovlandsdal.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@sanity/pkg-utils": "^1.8.2",
+    "@types/express": "^4.17.13",
+    "@types/jest": "^27.5.1",
+    "@types/node": "^18.7.23",
+    "@typescript-eslint/eslint-plugin": "^5.7.0",
+    "@typescript-eslint/parser": "^5.7.0",
+    "eslint": "^7.32.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-config-sanity": "^5.1.0",
+    "jest": "^28.1.0",
+    "prettier": "^2.5.1",
+    "rimraf": "^3.0.2",
+    "ts-jest": "^28.0.2",
+    "typescript": "^4.5.4"
+  },
+  "bugs": {
+    "url": "https://github.com/rexxars/eventsource-parser/issues"
+  },
+  "homepage": "https://github.com/rexxars/eventsource-parser#readme",
+  "prettier": {
+    "semi": false,
+    "printWidth": 100,
+    "bracketSpacing": false,
+    "singleQuote": true
+  },
+  "eslintConfig": {
+    "parserOptions": {
+      "ecmaVersion": 9,
+      "sourceType": "module",
+      "ecmaFeatures": {
+        "modules": true
+      }
+    },
+    "extends": [
+      "sanity",
+      "sanity/typescript",
+      "prettier"
+    ],
+    "ignorePatterns": [
+      "lib/**/"
+    ]
+  },
+  "jest": {
+    "clearMocks": true,
+    "collectCoverage": true,
+    "coverageDirectory": "coverage",
+    "coverageProvider": "v8",
+    "coverageReporters": [
+      "lcov"
+    ],
+    "preset": "ts-jest"
+  }
+}
