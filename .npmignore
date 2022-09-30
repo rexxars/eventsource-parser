@@ -1,0 +1,7 @@
+/test
+.editorconfig
+.eslintignore
+.gitignore
+tsconfig.dist.json
+tsconfig.json
+tsconfig.settings.json
