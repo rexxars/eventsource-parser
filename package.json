@@ -87,6 +87,8 @@
     "coverageReporters": [
       "lcov"
     ],
-    "preset": "ts-jest"
+    "preset": "ts-jest",
+    "slowTestThreshold": 10,
+    "testTimeout": 30000
   }
 }
