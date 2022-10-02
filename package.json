@@ -37,7 +37,7 @@
   "author": "Espen Hovlandsdal <espen@hovlandsdal.com>",
   "license": "MIT",
   "devDependencies": {
-    "@sanity/pkg-utils": "^1.8.2",
+    "@sanity/pkg-utils": "^1.9.0",
     "@types/express": "^4.17.13",
     "@types/jest": "^27.5.1",
     "@types/node": "^18.7.23",
