@@ -1,4 +1,4 @@
-import {createHash} from 'node:crypto'
+import {createHash} from 'crypto'
 import {createParser} from '../src/parse'
 import type {ParsedEvent, ReconnectInterval} from '../src/types'
 import {
