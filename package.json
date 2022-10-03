@@ -1,6 +1,6 @@
 {
   "name": "eventsource-parser",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Streaming, source-agnostic EventSource/Server-Sent Events parser",
   "sideEffects": false,
   "type": "commonjs",
