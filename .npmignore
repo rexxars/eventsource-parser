@@ -1,4 +1,6 @@
 /test
+/coverage
+/.github
 .editorconfig
 .eslintignore
 .gitignore
