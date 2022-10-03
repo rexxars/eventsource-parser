@@ -1,3 +1,10 @@
+/**
+ * EventSource/Server-Sent Events parser
+ * @see https://html.spec.whatwg.org/multipage/server-sent-events.html
+ *
+ * Based on code from the {@link https://github.com/EventSource/eventsource | EventSource module},
+ * which is licensed under the MIT license. And copyrighted the EventSource GitHub organisation.
+ */
 import type {EventSourceParseCallback, EventSourceParser} from './types.js'
 
 /**
