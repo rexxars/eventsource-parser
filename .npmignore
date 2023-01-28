@@ -9,3 +9,6 @@ package.config.ts
 tsconfig.dist.json
 tsconfig.json
 tsconfig.settings.json
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
