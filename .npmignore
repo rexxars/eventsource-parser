@@ -1,6 +1,7 @@
 /test
 /coverage
 /.github
+/dist/stats.html
 .editorconfig
 .eslintignore
 .gitignore
