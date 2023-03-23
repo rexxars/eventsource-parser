@@ -45,7 +45,6 @@ jspm_packages
 # Lockfiles
 yarn.lock
 pnpm-lock.yaml
-package-lock.json
 
 # Cache
 .cache
