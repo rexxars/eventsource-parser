@@ -5,12 +5,9 @@ import {name, version} from './package.json'
 export default defineConfig({
   extract: {
     rules: {
-      'ae-missing-release-tag': 'off',
       'tsdoc-undefined-tag': 'off',
     },
   },
-
-  legacyExports: true,
 
   rollup: {
     plugins: [

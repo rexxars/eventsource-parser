@@ -3,30 +3,27 @@
   "version": "0.1.0",
   "description": "Streaming, source-agnostic EventSource/Server-Sent Events parser",
   "sideEffects": false,
-  "types": "./dist/index.d.ts",
-  "source": "./src/index.ts",
-  "module": "./dist/index.esm.js",
-  "main": "./dist/index.js",
+  "type": "module",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "source": "./src/index.ts",
-      "require": "./dist/index.js",
-      "node": {
-        "import": "./dist/index.cjs.mjs",
-        "require": "./dist/index.js"
-      },
-      "import": "./dist/index.esm.js",
-      "default": "./dist/index.esm.js"
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
   },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "source": "./src/index.ts",
+  "types": "./dist/index.d.ts",
   "scripts": {
     "clean": "rimraf dist coverage",
     "build": "pkg-utils build && pkg-utils --strict",
     "prebuild": "npm run clean",
     "lint": "eslint . && tsc --noEmit",
-    "test": "vitest",
+    "test": "vitest --reporter=verbose",
     "posttest": "npm run lint",
     "prepublishOnly": "npm run build"
   },
