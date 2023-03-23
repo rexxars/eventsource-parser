@@ -1,4 +1,5 @@
-import {createHash} from 'crypto'
+import {createHash} from 'node:crypto'
+import {test, expect, vi} from 'vitest'
 import {createParser} from '../src/parse'
 import type {ParsedEvent, ReconnectInterval} from '../src/types'
 import {
@@ -244,7 +245,6 @@ test('stream with unknown fields in the stream', async () => {
 })
 
 test('stream with huge data chunks', async () => {
-  jest.setTimeout(15000)
   const mock = getParseResultMock()
   const parser = createParser(mock.onParse)
   await getHugeMessageFixtureStream(parser.feed)
@@ -262,7 +262,7 @@ test('stream with huge data chunks', async () => {
   }
 
   expect(hashMsg.data).toBe(receivedHash)
-})
+}, 15000)
 
 interface MessageMatcher {
   id?: string | RegExp
@@ -273,7 +273,7 @@ interface MessageMatcher {
 function getParseResultMock() {
   let messageIndex = -1
   const events: (ParsedEvent | ReconnectInterval)[] = []
-  const fn = jest.fn((evt: ParsedEvent | ReconnectInterval) => events.push(evt))
+  const fn = vi.fn((evt: ParsedEvent | ReconnectInterval) => events.push(evt))
 
   function messageMatches(index: number, evt: MessageMatcher) {
     const msg = events[index]
