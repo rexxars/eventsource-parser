@@ -15,7 +15,7 @@ npm install --save eventsource-parser
 ## Usage
 
 ```ts
-import {createParser, ParsedEvent, ReconnectInterval} from 'eventsource-parser'
+import {createParser, type ParsedEvent, type ReconnectInterval} from 'eventsource-parser'
 
 function onParse(event: ParsedEvent | ReconnectInterval) {
   if (event.type === 'event') {
