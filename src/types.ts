@@ -7,7 +7,7 @@
  */
 export interface EventSourceParser {
   /**
-   * Feeds the parser another another chunk. The method _does not_ return a parsed message.
+   * Feeds the parser another chunk. The method _does not_ return a parsed message.
    * Instead, if the chunk was a complete message (or completed a previously incomplete message),
    * it will invoke the `onParse` callback used to create the parsers.
    *
