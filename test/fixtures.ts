@@ -31,14 +31,14 @@ export async function getTimeFixtureStreamChunked(onChunk: OnChunkCallback): Pro
   for (let i = 0; i < 30; i++) {
     await enqueRandomChunks(
       formatEvent({id: randomString(), event: 'time', data: new Date().toISOString()}),
-      onChunk
+      onChunk,
     )
   }
 }
 
 export async function getIdentifiedFixtureStream(
   start: number,
-  onChunk: OnChunkCallback
+  onChunk: OnChunkCallback,
 ): Promise<void> {
   for (let id = start; id < start + 2; id++) {
     onChunk(formatEvent({event: 'tick', data: `${id}`, id: `${id}`, retry: 50}))
@@ -152,7 +152,7 @@ export async function getLineFeedFixtureStream(onChunk: OnChunkCallback): Promis
 }
 
 export async function getCarriageReturnLineFeedFixtureStream(
-  onChunk: OnChunkCallback
+  onChunk: OnChunkCallback,
 ): Promise<void> {
   await delay(1)
 
@@ -233,7 +233,7 @@ export async function getEmptyEventsFixtureStream(onChunk: OnChunkCallback): Pro
 
 export async function getEmptyRetryFixtureStream(
   last: number | undefined,
-  onChunk: OnChunkCallback
+  onChunk: OnChunkCallback,
 ): Promise<void> {
   await delay(1)
 
@@ -250,7 +250,7 @@ export async function getFieldParsingFixtureStream(onChunk: OnChunkCallback): Pr
   await delay(1)
 
   onChunk(
-    'data:\0\ndata:  2\rData:1\ndata\0:2\ndata:1\r\0data:4\nda-ta:3\rdata_5\ndata:3\rdata\ndata:\r\n data:32\ndata:4\n\n'
+    'data:\0\ndata:  2\rData:1\ndata\0:2\ndata:1\r\0data:4\nda-ta:3\rdata_5\ndata:3\rdata\ndata:\r\n data:32\ndata:4\n\n',
   )
   onChunk(formatEvent({event: 'done', data: '✔'}))
 }
@@ -291,13 +291,13 @@ export async function getHugeMessageFixtureStream(onChunk: OnChunkCallback): Pro
     formatEvent({
       event: 'done',
       data: 'e094a44a2436226ea9feb04e413a28de012b406012ec0eb6b37ad0a19d403660',
-    })
+    }),
   )
 }
 
 export async function getHeadersFixtureStream(
   headers: any,
-  onChunk: OnChunkCallback
+  onChunk: OnChunkCallback,
 ): Promise<void> {
   await delay(1)
 

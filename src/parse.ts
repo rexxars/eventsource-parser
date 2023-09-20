@@ -117,7 +117,7 @@ export function createParser(onParse: EventSourceParseCallback): EventSourcePars
     lineBuffer: string,
     index: number,
     fieldLength: number,
-    lineLength: number
+    lineLength: number,
   ) {
     if (lineLength === 0) {
       // We reached the last line of this event
