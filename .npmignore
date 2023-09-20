@@ -1,14 +1,1 @@
-/test
-/coverage
-/.github
 /dist/stats.html
-.editorconfig
-.eslintignore
-.gitignore
-package.config.ts
-tsconfig.dist.json
-tsconfig.json
-tsconfig.settings.json
-package-lock.json
-pnpm-lock.yaml
-yarn.lock

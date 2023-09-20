@@ -40,6 +40,10 @@
   "module": "./dist/index.js",
   "source": "./src/index.ts",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
     "prebuild": "npm run clean",
     "build": "pkg-utils build && pkg-utils --strict",
