@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.settings",
   "include": ["./src"],
-  "exclude": ["**/__tests__/**"],
+  "exclude": ["**/test/**"],
   "compilerOptions": {
     "noEmit": true
   }
