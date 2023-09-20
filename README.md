@@ -4,7 +4,7 @@
 
 A streaming parser for [server-sent events/eventsource](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events), without any assumptions about how the actual stream of data is retrieved. It is intended to be a building block for clients and polyfills in javascript environments such as browsers, node.js and deno.
 
-You create an instance of the parser, and _feed_ it chunks of data - partial or complete, and the parse emits parsed messages once it receives a complete message. A TransformStream variant is also available for environments that support it (modern browsers, Node 18 and higher).
+You create an instance of the parser, and _feed_ it chunks of data - partial or complete, and the parse emits parsed messages once it receives a complete message. A [TransformStream variant](#stream-usage) is also available for environments that support it (modern browsers, Node 18 and higher).
 
 ## Installation
 
