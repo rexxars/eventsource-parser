@@ -233,7 +233,7 @@ test('stream with partially incorrect retry fields', async () => {
   await getInvalidRetryFixtureStream(parser.feed)
   expect(mock.events[0]).toMatchObject({type: 'reconnect-interval', value: 1000})
   expect(mock.events[1]).toMatchObject({type: 'reconnect-interval', value: 2000})
-  expect(mock.events[2]).toMatchObject({type: 'event', data: 'x', event: undefined})
+  expect(mock.events[2]).toMatchObject({type: 'event', data: 'x', event: 'message'})
   mock.expectNumberOfMessagesToBe(3)
 })
 
