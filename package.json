@@ -44,6 +44,13 @@
     "dist",
     "src"
   ],
+  "typesVersions": {
+    "*": {
+      "*": [
+        "./dist/*"
+      ]
+    }
+  },
   "scripts": {
     "prebuild": "npm run clean",
     "build": "pkg-utils build && pkg-utils --strict",
