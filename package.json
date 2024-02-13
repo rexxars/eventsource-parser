@@ -46,8 +46,8 @@
   ],
   "typesVersions": {
     "*": {
-      "*": [
-        "./dist/*"
+      "stream": [
+        "./dist/stream.d.ts"
       ]
     }
   },
