@@ -125,14 +125,14 @@ export function createParser(onParse: EventSourceParseCallback): EventSourcePars
         onParse({
           type: 'event',
           id: eventId,
-          event: eventName || undefined,
+          event: eventName || "message",
           data: data.slice(0, -1), // remove trailing newline
         })
 
         data = ''
         eventId = undefined
       }
-      eventName = undefined
+      eventName = "message"
       return
     }
 
