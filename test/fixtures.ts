@@ -246,15 +246,6 @@ export async function getEmptyRetryFixtureStream(
   }
 }
 
-export async function getFieldParsingFixtureStream(onChunk: OnChunkCallback): Promise<void> {
-  await delay(1)
-
-  onChunk(
-    'data:\0\ndata:  2\rData:1\ndata\0:2\ndata:1\r\0data:4\nda-ta:3\rdata_5\ndata:3\rdata\ndata:\r\n data:32\ndata:4\n\n',
-  )
-  onChunk(formatEvent({event: 'done', data: '✔'}))
-}
-
 export async function getDataFieldParsingFixtureStream(onChunk: OnChunkCallback): Promise<void> {
   await delay(1)
 
@@ -293,15 +284,6 @@ export async function getHugeMessageFixtureStream(onChunk: OnChunkCallback): Pro
       data: 'e094a44a2436226ea9feb04e413a28de012b406012ec0eb6b37ad0a19d403660',
     }),
   )
-}
-
-export async function getHeadersFixtureStream(
-  headers: any,
-  onChunk: OnChunkCallback,
-): Promise<void> {
-  await delay(1)
-
-  onChunk(formatEvent({event: 'headers', data: JSON.stringify(headers)}))
 }
 
 function delay(ms: number): Promise<void> {
