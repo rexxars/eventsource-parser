@@ -1,5 +1,5 @@
 import {test, expect} from 'vitest'
-import {EventSourceParserStream, ParsedEvent} from '../src/stream.js'
+import {EventSourceParserStream, type ParsedEvent} from '../src/stream.js'
 import {formatEvent} from './format.js'
 
 test('can use `EventSourceParserStream`', async () => {

@@ -1,8 +1,8 @@
 {
-  "extends": "./tsconfig.settings",
-  "include": ["./src"],
-  "exclude": ["**/test/**"],
+  "extends": "@sanity/pkg-utils/tsconfig/strictest.json",
   "compilerOptions": {
-    "noEmit": true
+    "outDir": "dist",
+    "rootDir": ".",
+    "checkJs": false
   }
 }

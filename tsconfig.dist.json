@@ -1,9 +1,0 @@
-{
-  "extends": "./tsconfig.settings",
-  "include": ["./src"],
-  "exclude": ["**/test/**"],
-  "compilerOptions": {
-    "outDir": "./dist/types",
-    "rootDir": "."
-  }
-}
