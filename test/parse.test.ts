@@ -34,7 +34,7 @@ test('basic unnamed events stream', async () => {
   await getBasicFixtureStream(parser.feed)
 
   mock.expectNumberOfMessagesToBe(6)
-  mock.expectNextMessage({data: '0', event: undefined, id: undefined})
+  mock.expectNextMessage({data: '0', event: 'message', id: undefined})
   mock.expectNextMessage({data: '1'})
   mock.expectNextMessage({data: '2'})
   mock.expectNextMessage({data: '3'})
@@ -186,7 +186,7 @@ test('stream with empty `event` field', async () => {
   const mock = getParseResultMock()
   const parser = createParser(mock.onParse)
   await getEmptyEventsFixtureStream(parser.feed)
-  mock.expectNextMessage({data: 'Hello 1', event: undefined})
+  mock.expectNextMessage({data: 'Hello 1', event: 'message'})
   mock.expectNextMessage({data: '✔', event: 'done'})
 })
 
@@ -202,19 +202,19 @@ test('stream with empty `retry` field', async () => {
   })
   expect(mock.events[1]).toMatchObject({
     data: '🥌',
-    event: undefined,
+    event: 'message',
     id: '1',
     type: 'event',
   })
   expect(mock.events[2]).toMatchObject({
     data: '🧹',
-    event: undefined,
+    event: 'message',
     id: '2',
     type: 'event',
   })
   expect(mock.events[3]).toMatchObject({
     data: '✅',
-    event: undefined,
+    event: 'message',
     id: '3',
     type: 'event',
   })
@@ -235,7 +235,7 @@ test('stream with partially incorrect retry fields', async () => {
   await getInvalidRetryFixtureStream(parser.feed)
   expect(mock.events[0]).toMatchObject({type: 'reconnect-interval', value: 1000})
   expect(mock.events[1]).toMatchObject({type: 'reconnect-interval', value: 2000})
-  expect(mock.events[2]).toMatchObject({type: 'event', data: 'x', event: undefined})
+  expect(mock.events[2]).toMatchObject({type: 'event', data: 'x', event: 'message'})
   mock.expectNumberOfMessagesToBe(3)
 })
 
@@ -243,7 +243,7 @@ test('stream with unknown fields in the stream', async () => {
   const mock = getParseResultMock()
   const parser = createParser(mock.onParse)
   await getUnknownFieldsFixtureStream(parser.feed)
-  mock.expectNextMessage({event: undefined, data: 'abc\n\n123'})
+  mock.expectNextMessage({event: 'message', data: 'abc\n\n123'})
 })
 
 test('stream with huge data chunks', async () => {
