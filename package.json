@@ -45,13 +45,16 @@
     "stream.js"
   ],
   "scripts": {
-    "prebuild": "npm run clean",
     "build": "pkg-utils build && pkg-utils --strict",
     "clean": "rimraf dist coverage",
     "lint": "eslint . && tsc --noEmit",
+    "posttest": "npm run lint",
+    "prebuild": "npm run clean",
     "prepublishOnly": "npm run build",
-    "test": "vitest --reporter=verbose",
-    "posttest": "npm run lint"
+    "test": "npm run test:node",
+    "test:bun": "bun test",
+    "test:deno": "deno run --allow-write --allow-net --allow-run --allow-sys --allow-ffi --allow-env --allow-read npm:vitest",
+    "test:node": "vitest --reporter=verbose"
   },
   "author": "Espen Hovlandsdal <espen@hovlandsdal.com>",
   "keywords": [

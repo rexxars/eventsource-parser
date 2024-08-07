@@ -1,61 +1,65 @@
-name: CI
-
-# Workflow name based on selected inputs. Fallback to default Github naming when expression evaluates to empty string
-run-name: >-
-  ${{
-    inputs.release && 'CI ➤ Publish to NPM' ||
-    ''
-  }}
-
+name: Test
 on:
-  pull_request:
   push:
-    branches: [main]
   workflow_dispatch:
-    inputs:
-      release:
-        description: 'Publish new release'
-        required: true
-        default: false
-        type: boolean
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
 
 jobs:
-  test:
+  testNode:
+    name: 'Test: Node.js ${{ matrix.node-version }}'
+    timeout-minutes: 15
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ['18.x', '20.x', '22.x']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: lts/*
-          cache: npm
-      - run: npm ci
-      - run: npm test
-
-  release:
-    needs: [test]
-    # only run if opt-in during workflow_dispatch
-    if: always() && github.event.inputs.release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Need to fetch entire commit history to
-          # analyze every commit since last release
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: lts/*
-          cache: npm
-      - run: npm ci
-        # Branches that will release new versions are defined in .releaserc.json
-      - run: npx semantic-release
-        # Don't allow interrupting the release step if the job is cancelled, as it can lead to an inconsistent state
-        # e.g. git tags were pushed but it exited before `npm publish`
-        if: always()
+          node-version: ${{ matrix.node-version }}
+      - name: Cache node modules
+        id: cache-node-modules
+        uses: actions/cache@v4
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
+          cache-name: cache-node-modules
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-${{ env.cache-name }}-node-${{ matrix.node-version }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-modules-${{ env.cache-name }}--node-${{ matrix.node-version }}-
+            ${{ runner.os }}-modules-${{ env.cache-name }}
+            ${{ runner.os }}-modules-
+            ${{ runner.os }}-
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+      - name: Run tests
+        run: npm run test:node
+
+  # Deno currently fails because of vitest incompatibility
+  # testDeno:
+  #   name: 'Test: Deno'
+  #   timeout-minutes: 15
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: denoland/setup-deno@v1
+  #       with:
+  #         deno-version: v1.x
+  #     - name: Run tests
+  #       run: npm run test:deno
+
+  # Bun currently fails because of broken/missing TextDecoder
+  # testBun:
+  #   name: 'Test: Bun'
+  #   timeout-minutes: 15
+  #   runs-on: ubuntu-latest
+  #   continue-on-error: true
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: oven-sh/setup-bun@v1
+  #       with:
+  #         bun-version: latest
+  #     - name: Install Dependencies
+  #       run: bun install --frozen-lockfile
+  #     - name: Run tests
+  #       run: npm run test:bun
