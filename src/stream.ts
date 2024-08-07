@@ -1,5 +1,5 @@
-import type {EventSourceParser, ParsedEvent} from './types.js'
 import {createParser} from './parse.js'
+import type {EventSourceParser, ParsedEvent} from './types.js'
 
 /**
  * A TransformStream that ingests a stream of strings and produces a stream of ParsedEvents.

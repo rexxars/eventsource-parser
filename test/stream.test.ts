@@ -1,4 +1,5 @@
-import {test, expect} from 'vitest'
+import {expect, test} from 'vitest'
+
 import {EventSourceParserStream, type ParsedEvent} from '../src/stream.js'
 import {formatEvent} from './format.js'
 

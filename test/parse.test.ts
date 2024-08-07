@@ -1,5 +1,7 @@
 import {createHash} from 'node:crypto'
-import {test, expect, vi} from 'vitest'
+
+import {expect, test, vi} from 'vitest'
+
 import {createParser} from '../src/parse'
 import type {ParsedEvent, ReconnectInterval} from '../src/types'
 import {
