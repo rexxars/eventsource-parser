@@ -41,7 +41,8 @@
   ],
   "files": [
     "dist",
-    "src"
+    "src",
+    "stream.js"
   ],
   "scripts": {
     "prebuild": "npm run clean",
