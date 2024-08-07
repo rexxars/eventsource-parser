@@ -5,6 +5,17 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.0.0](https://github.com/rexxars/eventsource-parser/compare/v1.1.2...v2.0.0) (2024-08-07)
+
+### ⚠ BREAKING CHANGES
+
+- BREAKING: minimum node.js version is now v18
+
+### Bug Fixes
+
+- BREAKING: minimum node.js version is now v18 ([d652333](https://github.com/rexxars/eventsource-parser/commit/d652333674e6e26ecd23e0b85cc83f57e06d894e))
+- enable legacy exports ([b88e02c](https://github.com/rexxars/eventsource-parser/commit/b88e02cdfb3cf2e503eb9dc51e8115121fee7eea))
+
 ## [1.1.2](https://github.com/rexxars/eventsource-parser/compare/v1.1.1...v1.1.2) (2024-02-13)
 
 ### Bug Fixes
