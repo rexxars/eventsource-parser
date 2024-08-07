@@ -1,6 +1,6 @@
 {
   "name": "eventsource-parser",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Streaming, source-agnostic EventSource/Server-Sent Events parser",
   "sideEffects": false,
   "type": "module",

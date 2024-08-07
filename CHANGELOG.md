@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.0.1](https://github.com/rexxars/eventsource-parser/compare/v2.0.0...v2.0.1) (2024-08-07)
+
+### Bug Fixes
+
+- include root-level legacy export in published files ([c814b4b](https://github.com/rexxars/eventsource-parser/commit/c814b4bc03fc0f72729a88a829c33e243c2c3cc8))
+
 ## [2.0.0](https://github.com/rexxars/eventsource-parser/compare/v1.1.2...v2.0.0) (2024-08-07)
 
 ### ⚠ BREAKING CHANGES
