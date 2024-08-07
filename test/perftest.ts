@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import {createParser} from '../src/parse'
+import {createParser} from '../src/parse.ts'
 
 const NUM_RUNS = 10
 const NUM_EVENTS = 5e6

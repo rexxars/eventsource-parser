@@ -1,12 +1,12 @@
-import {encodeData, formatComment, formatEvent} from './format'
-import {MULTIBYTE_EMOJIS, MULTIBYTE_LINES} from './multibyte'
+import {encodeData, formatComment, formatEvent} from './format.ts'
+import {MULTIBYTE_EMOJIS, MULTIBYTE_LINES} from './multibyte.ts'
 
 type OnChunkCallback = (chunk: string) => void
 
 const TEN_MEGABYTES = 1024 * 1024 * 10
 const EMOJI_DATA = MULTIBYTE_EMOJIS.join(' ')
 const DATA_CHUNK = encodeData(`${MULTIBYTE_LINES.join('\n\n')}\n${EMOJI_DATA}`).trim()
-const DATA_CHUNK_LENGTH = Buffer.from(DATA_CHUNK).byteLength
+const DATA_CHUNK_LENGTH = new Blob([DATA_CHUNK]).size
 const DATA_CHUNK_WAIT = Math.floor(1000 / (TEN_MEGABYTES / DATA_CHUNK_LENGTH))
 
 export async function getBasicFixtureStream(onChunk: OnChunkCallback): Promise<void> {

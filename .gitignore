@@ -42,8 +42,9 @@ jspm_packages
 # VS Code settings
 .vscode
 
-# Lockfiles
+# Non-npm lockfiles
 yarn.lock
+deno.lock
 pnpm-lock.yaml
 
 # Cache
@@ -51,4 +52,3 @@ pnpm-lock.yaml
 
 # Compiled output
 /dist
-

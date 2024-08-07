@@ -2,8 +2,8 @@ import {createHash} from 'node:crypto'
 
 import {expect, test, vi} from 'vitest'
 
-import {createParser} from '../src/parse'
-import type {ParsedEvent, ReconnectInterval} from '../src/types'
+import {createParser} from '../src/parse.ts'
+import type {ParsedEvent, ReconnectInterval} from '../src/types.ts'
 import {
   getBasicFixtureStream,
   getBomFixtureStream,
@@ -26,7 +26,7 @@ import {
   getTimeFixtureStream,
   getTimeFixtureStreamChunked,
   getUnknownFieldsFixtureStream,
-} from './fixtures'
+} from './fixtures.ts'
 
 test('basic unnamed events stream', async () => {
   const mock = getParseResultMock()

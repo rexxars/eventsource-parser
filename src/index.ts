@@ -1,8 +1,8 @@
-export {createParser} from './parse.js'
+export {createParser} from './parse.ts'
 export type {
   EventSourceParseCallback,
   EventSourceParser,
   ParsedEvent,
   ParseEvent,
   ReconnectInterval,
-} from './types.js'
+} from './types.ts'

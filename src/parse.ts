@@ -5,7 +5,7 @@
  * Based on code from the {@link https://github.com/EventSource/eventsource | EventSource module},
  * which is licensed under the MIT license. And copyrighted the EventSource GitHub organisation.
  */
-import type {EventSourceParseCallback, EventSourceParser} from './types.js'
+import type {EventSourceParseCallback, EventSourceParser} from './types.ts'
 
 /**
  * Creates a new EventSource parser.
