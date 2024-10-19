@@ -5,6 +5,23 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.0.0](https://github.com/rexxars/eventsource-parser/compare/v2.0.1...v3.0.0) (2024-10-19)
+
+### ⚠ BREAKING CHANGES
+
+- The parser now takes an object of callbacks instead of an `onParse` callback. This means you do not have to check the type of the event in the `onEvent` callback, but instead provide separate callbacks for each event type.
+- The `ParsedEvent` type has been renamed to `EventSourceMessage` and the `type` attribute has been removed.
+- The `EventSourceCallback` type has been removed in favor of the `ParserCallbacks` interface.
+
+BREAKING CHNAGE: The `ReconnectInterval` type has been removed in favor of providing the interval directly to the `onRetry` callback.
+
+- The `ParseEvent` type has been removed in favor of providing separate callbacks for each event type.
+- The parser has been rewritten to be more specification compliant. Certain _rare_ edge cases may now be handled differently. Mixed CRLF and LF line endings will now be handled correctly. `retry` fields now have to be completely valid integers to be parsed.
+
+### Features
+
+- provide `onError`, `onComment`, and `onRetry` callbacks ([#15](https://github.com/rexxars/eventsource-parser/issues/15)) ([c544729](https://github.com/rexxars/eventsource-parser/commit/c54472901ddf0674b38deb164013feade31d9869))
+
 ## [2.0.1](https://github.com/rexxars/eventsource-parser/compare/v2.0.0...v2.0.1) (2024-08-07)
 
 ### Bug Fixes
