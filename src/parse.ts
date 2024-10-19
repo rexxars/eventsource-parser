@@ -1,174 +1,208 @@
 /**
  * EventSource/Server-Sent Events parser
  * @see https://html.spec.whatwg.org/multipage/server-sent-events.html
- *
- * Based on code from the {@link https://github.com/EventSource/eventsource | EventSource module},
- * which is licensed under the MIT license. And copyrighted the EventSource GitHub organisation.
  */
-import type {EventSourceParseCallback, EventSourceParser} from './types.ts'
+import {ParseError} from './errors.ts'
+import type {EventSourceParser, ParserCallbacks} from './types.ts'
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function noop(_arg: unknown) {
+  // intentional noop
+}
 
 /**
  * Creates a new EventSource parser.
  *
- * @param onParse - Callback to invoke when a new event is parsed, or a new reconnection interval
- *                  has been sent from the server
+ * @param callbacks - Callbacks to invoke on different parsing events:
+ *   - `onEvent` when a new event is parsed
+ *   - `onError` when an error occurs
+ *   - `onRetry` when a new reconnection interval has been sent from the server
+ *   - `onComment` when a comment is encountered in the stream
  *
  * @returns A new EventSource parser, with `parse` and `reset` methods.
  * @public
  */
-export function createParser(onParse: EventSourceParseCallback): EventSourceParser {
-  // Processing state
-  let isFirstChunk: boolean
-  let buffer: string
-  let startingPosition: number
-  let startingFieldLength: number
+export function createParser(callbacks: ParserCallbacks): EventSourceParser {
+  const {onEvent = noop, onError = noop, onRetry = noop, onComment} = callbacks
 
-  // Event state
-  let eventId: string | undefined
-  let eventName: string | undefined
-  let data: string
+  let incompleteLine = ''
 
-  reset()
-  return {feed, reset}
+  let isFirstChunk = true
+  let id: string | undefined
+  let data = ''
+  let eventType = ''
 
-  function reset(): void {
-    isFirstChunk = true
-    buffer = ''
-    startingPosition = 0
-    startingFieldLength = -1
+  function feed(newChunk: string) {
+    // Strip any UTF8 byte order mark (BOM) at the start of the stream
+    const chunk = isFirstChunk ? newChunk.replace(/^\xEF\xBB\xBF/, '') : newChunk
 
-    eventId = undefined
-    eventName = undefined
-    data = ''
-  }
+    // If there was a previous incomplete line, append it to the new chunk,
+    // so we may process it together as a new (hopefully complete) chunk.
+    const [complete, incomplete] = splitLines(`${incompleteLine}${chunk}`)
 
-  function feed(chunk: string): void {
-    buffer = buffer ? buffer + chunk : chunk
-
-    // Strip any UTF8 byte order mark (BOM) at the start of the stream.
-    // Note that we do not strip any non - UTF8 BOM, as eventsource streams are
-    // always decoded as UTF8 as per the specification.
-    if (isFirstChunk && hasBom(buffer)) {
-      buffer = buffer.slice(BOM.length)
+    for (const line of complete) {
+      parseLine(line)
     }
 
+    incompleteLine = incomplete
     isFirstChunk = false
-
-    // Set up chunk-specific processing state
-    const length = buffer.length
-    let position = 0
-    let discardTrailingNewline = false
-
-    // Read the current buffer byte by byte
-    while (position < length) {
-      // EventSource allows for carriage return + line feed, which means we
-      // need to ignore a linefeed character if the previous character was a
-      // carriage return
-      // @todo refactor to reduce nesting, consider checking previous byte?
-      // @todo but consider multiple chunks etc
-      if (discardTrailingNewline) {
-        if (buffer[position] === '\n') {
-          ++position
-        }
-        discardTrailingNewline = false
-      }
-
-      let lineLength = -1
-      let fieldLength = startingFieldLength
-      let character: string
-
-      for (let index = startingPosition; lineLength < 0 && index < length; ++index) {
-        character = buffer[index]
-        if (character === ':' && fieldLength < 0) {
-          fieldLength = index - position
-        } else if (character === '\r') {
-          discardTrailingNewline = true
-          lineLength = index - position
-        } else if (character === '\n') {
-          lineLength = index - position
-        }
-      }
-
-      if (lineLength < 0) {
-        startingPosition = length - position
-        startingFieldLength = fieldLength
-        break
-      } else {
-        startingPosition = 0
-        startingFieldLength = -1
-      }
-
-      parseEventStreamLine(buffer, position, fieldLength, lineLength)
-
-      position += lineLength + 1
-    }
-
-    if (position === length) {
-      // If we consumed the entire buffer to read the event, reset the buffer
-      buffer = ''
-    } else if (position > 0) {
-      // If there are bytes left to process, set the buffer to the unprocessed
-      // portion of the buffer only
-      buffer = buffer.slice(position)
-    }
   }
 
-  function parseEventStreamLine(
-    lineBuffer: string,
-    index: number,
-    fieldLength: number,
-    lineLength: number,
-  ) {
-    if (lineLength === 0) {
-      // We reached the last line of this event
-      if (data.length > 0) {
-        onParse({
-          type: 'event',
-          id: eventId,
-          event: eventName || undefined,
-          data: data.slice(0, -1), // remove trailing newline
-        })
-
-        data = ''
-        eventId = undefined
-      }
-      eventName = undefined
+  function parseLine(line: string) {
+    // If the line is empty (a blank line), dispatch the event
+    if (line === '') {
+      dispatchEvent()
       return
     }
 
-    const noValue = fieldLength < 0
-    const field = lineBuffer.slice(index, index + (noValue ? lineLength : fieldLength))
-    let step = 0
-
-    if (noValue) {
-      step = lineLength
-    } else if (lineBuffer[index + fieldLength + 1] === ' ') {
-      step = fieldLength + 2
-    } else {
-      step = fieldLength + 1
+    // If the line starts with a U+003A COLON character (:), ignore the line.
+    if (line.startsWith(':')) {
+      if (onComment) {
+        onComment(line.slice(line.startsWith(': ') ? 2 : 1))
+      }
+      return
     }
 
-    const position = index + step
-    const valueLength = lineLength - step
-    const value = lineBuffer.slice(position, position + valueLength).toString()
+    // If the line contains a U+003A COLON character (:)
+    const fieldSeparatorIndex = line.indexOf(':')
+    if (fieldSeparatorIndex !== -1) {
+      // Collect the characters on the line before the first U+003A COLON character (:),
+      // and let `field` be that string.
+      const field = line.slice(0, fieldSeparatorIndex)
 
-    if (field === 'data') {
-      data += value ? `${value}\n` : '\n'
-    } else if (field === 'event') {
-      eventName = value
-    } else if (field === 'id' && !value.includes('\u0000')) {
-      eventId = value
-    } else if (field === 'retry') {
-      const retry = parseInt(value, 10)
-      if (!Number.isNaN(retry)) {
-        onParse({type: 'reconnect-interval', value: retry})
-      }
+      // Collect the characters on the line after the first U+003A COLON character (:),
+      // and let `value` be that string. If value starts with a U+0020 SPACE character,
+      // remove it from value.
+      const offset = line[fieldSeparatorIndex + 1] === ' ' ? 2 : 1
+      const value = line.slice(fieldSeparatorIndex + offset)
+
+      processField(field, value, line)
+      return
+    }
+
+    // Otherwise, the string is not empty but does not contain a U+003A COLON character (:)
+    // Process the field using the whole line as the field name, and an empty string as the field value.
+    // 👆 This is according to spec. That means that a line that has the value `data` will result in
+    // a newline being added to the current `data` buffer, for instance.
+    processField(line, '', line)
+  }
+
+  function processField(field: string, value: string, line: string) {
+    // Field names must be compared literally, with no case folding performed.
+    switch (field) {
+      case 'event':
+        // Set the `event type` buffer to field value
+        eventType = value
+        break
+      case 'data':
+        // Append the field value to the `data` buffer, then append a single U+000A LINE FEED(LF)
+        // character to the `data` buffer.
+        data = `${data}${value}\n`
+        break
+      case 'id':
+        // If the field value does not contain U+0000 NULL, then set the `ID` buffer to
+        // the field value. Otherwise, ignore the field.
+        id = value.includes('\0') ? undefined : value
+        break
+      case 'retry':
+        // If the field value consists of only ASCII digits, then interpret the field value as an
+        // integer in base ten, and set the event stream's reconnection time to that integer.
+        // Otherwise, ignore the field.
+        if (/^\d+$/.test(value)) {
+          onRetry(parseInt(value, 10))
+        } else {
+          onError(
+            new ParseError(`Invalid \`retry\` value: "${value}"`, {
+              type: 'invalid-retry',
+              value,
+              line,
+            }),
+          )
+        }
+        break
+      default:
+        // Otherwise, the field is ignored.
+        onError(
+          new ParseError(
+            `Unknown field "${field.length > 20 ? `${field.slice(0, 20)}…` : field}"`,
+            {type: 'unknown-field', field, value, line},
+          ),
+        )
+        break
     }
   }
+
+  function dispatchEvent() {
+    const shouldDispatch = data.length > 0
+    if (shouldDispatch) {
+      onEvent({
+        id,
+        event: eventType || undefined,
+        // If the data buffer's last character is a U+000A LINE FEED (LF) character,
+        // then remove the last character from the data buffer.
+        data: data.endsWith('\n') ? data.slice(0, -1) : data,
+      })
+    }
+
+    // Reset for the next event
+    id = undefined
+    data = ''
+    eventType = ''
+  }
+
+  function reset(options: {consume?: boolean} = {}) {
+    if (incompleteLine && options.consume) {
+      parseLine(incompleteLine)
+    }
+
+    id = undefined
+    data = ''
+    eventType = ''
+    incompleteLine = ''
+  }
+
+  return {feed, reset}
 }
 
-const BOM = [239, 187, 191]
+/**
+ * For the given `chunk`, split it into lines according to spec, and return any remaining incomplete line.
+ *
+ * @param chunk - The chunk to split into lines
+ * @returns A tuple containing an array of complete lines, and any remaining incomplete line
+ * @internal
+ */
+function splitLines(chunk: string): [Array<string>, string] {
+  /**
+   * According to the spec, a line is terminated by either:
+   * - U+000D CARRIAGE RETURN U+000A LINE FEED (CRLF) character pair
+   * - a single U+000A LINE FEED(LF) character not preceded by a U+000D CARRIAGE RETURN(CR) character
+   * - a single U+000D CARRIAGE RETURN(CR) character not followed by a U+000A LINE FEED(LF) character
+   */
 
-function hasBom(buffer: string) {
-  return BOM.every((charCode: number, index: number) => buffer.charCodeAt(index) === charCode)
+  const lines: Array<string> = []
+  let incompleteLine = ''
+
+  const totalLength = chunk.length
+  for (let i = 0; i < totalLength; i++) {
+    const char = chunk[i]
+
+    if (char === '\r' && chunk[i + 1] === '\n') {
+      // CRLF
+      lines.push(incompleteLine)
+      incompleteLine = ''
+      i++ // Skip the LF character
+    } else if (char === '\r') {
+      // Standalone CR
+      lines.push(incompleteLine)
+      incompleteLine = ''
+    } else if (char === '\n') {
+      // Standalone LF
+      lines.push(incompleteLine)
+      incompleteLine = ''
+    } else {
+      incompleteLine += char
+    }
+  }
+
+  return [lines, incompleteLine]
 }

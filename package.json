@@ -63,7 +63,7 @@
     "server-sent-events"
   ],
   "devDependencies": {
-    "@sanity/pkg-utils": "^6.10.9",
+    "@sanity/pkg-utils": "^6.11.4",
     "@sanity/semantic-release-preset": "^5.0.0",
     "@types/node": "^18.0.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
@@ -71,6 +71,7 @@
     "eslint": "^8.51.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-config-sanity": "^7.1.2",
+    "eventsource-encoder": "^1.0.0",
     "prettier": "^3.3.3",
     "rimraf": "^6.0.1",
     "rollup-plugin-visualizer": "^5.12.0",
