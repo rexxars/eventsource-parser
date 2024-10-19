@@ -10,8 +10,10 @@ const runs: number[] = []
 for (let run = 0; run < NUM_RUNS; run++) {
   let totalLength = 0
   const start = Date.now()
-  const parser = createParser((event) => {
-    totalLength += event.type === 'event' ? event.data.length : 0
+  const parser = createParser({
+    onEvent: (event) => {
+      totalLength += event.data.length
+    },
   })
 
   for (let i = 0; i < NUM_EVENTS; i++) {

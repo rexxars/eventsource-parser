@@ -8,6 +8,15 @@ If you are looking for a modern client implementation, see [eventsource-client](
 
 You create an instance of the parser, and _feed_ it chunks of data - partial or complete, and the parse emits parsed messages once it receives a complete message. A [TransformStream variant](#stream-usage) is also available for environments that support it (modern browsers, Node 18 and higher).
 
+Other modules in the EventSource family:
+
+- [eventsource-client](https://github.com/rexxars/eventsource-client): modern, feature rich eventsource client for browsers, node.js, bun, deno and other modern JavaScript environments.
+- [eventsource-encoder](https://github.com/rexxars/eventsource-encoder): encodes messages in the EventSource/Server-Sent Events format.
+- [eventsource](https://github.com/eventsource/eventsource): Node.js polyfill for the WhatWG EventSource API.
+
+> [!NOTE]
+> Migrating from eventsource-parser 1.x/2.x? See the [migration guide](./MIGRATE-v3.md).
+
 ## Installation
 
 ```bash
@@ -17,20 +26,16 @@ npm install --save eventsource-parser
 ## Usage
 
 ```ts
-import {createParser, type ParsedEvent, type ReconnectInterval} from 'eventsource-parser'
+import {createParser, type EventSourceMessage} from 'eventsource-parser'
 
-function onParse(event: ParsedEvent | ReconnectInterval) {
-  if (event.type === 'event') {
-    console.log('Received event!')
-    console.log('id: %s', event.id || '<none>')
-    console.log('name: %s', event.name || '<none>')
-    console.log('data: %s', event.data)
-  } else if (event.type === 'reconnect-interval') {
-    console.log('We should set reconnect interval to %d milliseconds', event.value)
-  }
+function onEvent(event: EventSourceMessage) {
+  console.log('Received event!')
+  console.log('id: %s', event.id || '<none>')
+  console.log('name: %s', event.name || '<none>')
+  console.log('data: %s', event.data)
 }
 
-const parser = createParser(onParse)
+const parser = createParser({onEvent})
 const sseStream = getSomeReadableStream()
 
 for await (const chunk of sseStream) {
@@ -41,6 +46,68 @@ for await (const chunk of sseStream) {
 parser.reset()
 console.log('Done!')
 ```
+
+### Retry intervals
+
+If the server sends a `retry` field in the event stream, the parser will call any `onRetry` callback specified to the `createParser` function:
+
+```ts
+const parser = createParser({
+  onRetry(retryInterval) {
+    console.log('Server requested retry interval of %dms', retryInterval)
+  },
+  onEvent(event) {
+    // …
+  },
+})
+```
+
+### Parse errors
+
+If the parser encounters an error while parsing, it will call any `onError` callback provided to the `createParser` function:
+
+```ts
+import {type ParseError} from 'eventsource-parser'
+
+const parser = createParser({
+  onError(error: ParseError) {
+    console.error('Error parsing event:', error)
+    if (error.type === 'invalid-field') {
+      console.error('Field name:', error.field)
+      console.error('Field value:', error.value)
+      console.error('Line:', error.line)
+    } else if (error.type === 'invalid-retry') {
+      console.error('Invalid retry interval:', error.value)
+    }
+  },
+  onEvent(event) {
+    // …
+  },
+})
+```
+
+Note that `invalid-field` errors will usually be called for any invalid data - not only data shaped as `field: value`. This is because the EventSource specification says to treat anything prior to a `:` as the field name. Use the `error.line` property to get the full line that caused the error.
+
+> [!NOTE]
+> When encountering the end of a stream, calling `.reset({consume: true})` on the parser to flush any remaining data and reset the parser state. This will trigger the `onError` callback if the pending data is not a valid event.
+
+### Comments
+
+The parser will ignore comments (lines starting with `:`) by default. If you want to handle comments, you can provide an `onComment` callback to the `createParser` function:
+
+```ts
+const parser = createParser({
+  onComment(comment) {
+    console.log('Received comment:', comment)
+  },
+  onEvent(event) {
+    // …
+  },
+})
+```
+
+> [!NOTE]
+> Leading whitespace is not stripped from comments, eg `: comment` will give ` comment` as the comment value, not `comment` (note the leading space).
 
 ## Stream usage
 

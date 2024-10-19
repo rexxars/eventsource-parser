@@ -1,3 +1,5 @@
+import type {ParseError} from './errors.ts'
+
 /**
  * EventSource parser instance.
  *
@@ -20,23 +22,22 @@ export interface EventSourceParser {
    * Resets the parser state. This is required when you have a new stream of messages -
    * for instance in the case of a client being disconnected and reconnecting.
    *
+   * Previously received, incomplete data will NOT be parsed unless you pass `consume: true`,
+   * which tells the parser to attempt to consume any incomplete data as if it ended with a newline
+   * character. This is useful for cases when a server sends a non-EventSource message that you
+   * want to be able to react to in an `onError` callback.
+   *
    * @public
    */
-  reset(): void
+  reset(options?: {consume?: boolean}): void
 }
 
 /**
- * A parsed EventSource event
+ * A parsed EventSource message event
  *
  * @public
  */
-export interface ParsedEvent {
-  /**
-   * Differentiates the type from reconnection intervals and other types of messages
-   * Not to be confused with `event`.
-   */
-  type: 'event'
-
+export interface EventSourceMessage {
   /**
    * The event type sent from the server. Note that this differs from the browser `EventSource`
    * implementation in that browsers will default this to `message`, whereas this parser will
@@ -57,34 +58,40 @@ export interface ParsedEvent {
 }
 
 /**
- * An event emitted from the parser when the server sends a value in the `retry` field,
- * indicating how many seconds the client should wait before attempting to reconnect.
+ * Callbacks that can be passed to the parser to handle different types of parsed messages
+ * and errors.
  *
  * @public
  */
-export interface ReconnectInterval {
+export interface ParserCallbacks {
   /**
-   * Differentiates the type from `event` and other types of messages
+   * Callback for when a new event/message is parsed from the stream.
+   * This is the main callback that clients will use to handle incoming messages.
+   *
+   * @param event - The parsed event/message
    */
-  type: 'reconnect-interval'
+  onEvent?: (event: EventSourceMessage) => void
 
   /**
-   * Number of seconds to wait before reconnecting. Note that the parser does not care about
-   * this value at all - it only emits the value for clients to use.
+   * Callback for when the server sends a new reconnection interval through the `retry` field.
+   *
+   * @param retry - The number of milliseconds to wait before reconnecting.
    */
-  value: number
+  onRetry?: (retry: number) => void
+
+  /**
+   * Callback for when a comment is encountered in the stream.
+   *
+   * @param comment - The comment encountered in the stream.
+   */
+  onComment?: (comment: string) => void
+
+  /**
+   * Callback for when an error occurs during parsing. This is a catch-all for any errors
+   * that occur during parsing, and can be used to handle them in a custom way. Most clients
+   * tend to silently ignore any errors and instead retry, but it can be helpful to log/debug.
+   *
+   * @param error - The error that occurred during parsing
+   */
+  onError?: (error: ParseError) => void
 }
-
-/**
- * The different types of messages the parsed can emit to the `onParse` callback
- *
- * @public
- */
-export type ParseEvent = ParsedEvent | ReconnectInterval
-
-/**
- * Callback passed as the `onParse` callback to a parser
- *
- * @public
- */
-export type EventSourceParseCallback = (event: ParseEvent) => void

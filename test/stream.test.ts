@@ -1,12 +1,12 @@
+import {encode} from 'eventsource-encoder'
 import {expect, test} from 'vitest'
 
-import {EventSourceParserStream, type ParsedEvent} from '../src/stream.ts'
-import {formatEvent} from './format.ts'
+import {type EventSourceMessage, EventSourceParserStream} from '../src/stream.ts'
 
 test('can use `EventSourceParserStream`', async () => {
   let fixture = ''
   for (let i = 0; i < 10; i++) {
-    fixture += formatEvent({data: `Hello ${i}`, event: 'foo', id: `evt-${i}`})
+    fixture += encode({data: `Hello ${i}`, event: 'foo', id: `evt-${i}`})
   }
 
   const response = new Response(fixture)
@@ -19,7 +19,7 @@ test('can use `EventSourceParserStream`', async () => {
     .pipeThrough(new EventSourceParserStream())
     .getReader()
 
-  const chunks: ParsedEvent[] = []
+  const chunks: EventSourceMessage[] = []
   for (;;) {
     const {done, value} = await eventStream.read()
     if (!done) {
@@ -28,22 +28,16 @@ test('can use `EventSourceParserStream`', async () => {
     }
 
     expect(chunks).toHaveLength(10)
-    expect(chunks[0]).toMatchInlineSnapshot(`
-      {
-        "data": "Hello 0",
-        "event": "foo",
-        "id": "evt-0",
-        "type": "event",
-      }
-    `)
-    expect(chunks[9]).toMatchInlineSnapshot(`
-      {
-        "data": "Hello 9",
-        "event": "foo",
-        "id": "evt-9",
-        "type": "event",
-      }
-    `)
+    expect(chunks[0]).toMatchObject({
+      data: 'Hello 0',
+      event: 'foo',
+      id: 'evt-0',
+    })
+    expect(chunks[9]).toMatchObject({
+      data: 'Hello 9',
+      event: 'foo',
+      id: 'evt-9',
+    })
     return
   }
 })

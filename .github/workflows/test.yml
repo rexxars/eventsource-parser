@@ -6,12 +6,12 @@ on:
       bun:
         description: 'Test on bun'
         required: true
-        default: false
+        default: true
         type: boolean
       deno:
         description: 'Test on deno'
         required: true
-        default: false
+        default: true
         type: boolean
 
 jobs:
