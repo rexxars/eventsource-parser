@@ -23,6 +23,12 @@ function noop(_arg: unknown) {
  * @public
  */
 export function createParser(callbacks: ParserCallbacks): EventSourceParser {
+  if (typeof callbacks === 'function') {
+    throw new TypeError(
+      '`callbacks` must be an object, got a function instead. Did you mean `{onEvent: fn}`?',
+    )
+  }
+
   const {onEvent = noop, onError = noop, onRetry = noop, onComment} = callbacks
 
   let incompleteLine = ''

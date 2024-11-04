@@ -417,3 +417,12 @@ test('calls onError when the stream is invalid (no field separator)', async () =
     line: 'Well, this is not what I expected',
   })
 })
+
+test('passing a function to `createParser` will throw with helpful error', () => {
+  expect(() => {
+    // @ts-expect-error Should not allow a function, typing-wise
+    createParser(() => null)
+  }).toThrowError(
+    '`callbacks` must be an object, got a function instead. Did you mean `{onEvent: fn}`?',
+  )
+})
