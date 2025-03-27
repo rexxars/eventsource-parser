@@ -161,6 +161,7 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
       parseLine(incompleteLine)
     }
 
+    isFirstChunk = true
     id = undefined
     data = ''
     eventType = ''
@@ -177,36 +178,47 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
  * @returns A tuple containing an array of complete lines, and any remaining incomplete line
  * @internal
  */
-function splitLines(chunk: string): [Array<string>, string] {
+function splitLines(chunk: string): [complete: Array<string>, incomplete: string] {
   /**
    * According to the spec, a line is terminated by either:
    * - U+000D CARRIAGE RETURN U+000A LINE FEED (CRLF) character pair
    * - a single U+000A LINE FEED(LF) character not preceded by a U+000D CARRIAGE RETURN(CR) character
    * - a single U+000D CARRIAGE RETURN(CR) character not followed by a U+000A LINE FEED(LF) character
    */
-
   const lines: Array<string> = []
   let incompleteLine = ''
+  let searchIndex = 0
 
-  const totalLength = chunk.length
-  for (let i = 0; i < totalLength; i++) {
-    const char = chunk[i]
+  while (searchIndex < chunk.length) {
+    // Find next line terminator
+    const crIndex = chunk.indexOf('\r', searchIndex)
+    const lfIndex = chunk.indexOf('\n', searchIndex)
 
-    if (char === '\r' && chunk[i + 1] === '\n') {
-      // CRLF
-      lines.push(incompleteLine)
-      incompleteLine = ''
-      i++ // Skip the LF character
-    } else if (char === '\r') {
-      // Standalone CR
-      lines.push(incompleteLine)
-      incompleteLine = ''
-    } else if (char === '\n') {
-      // Standalone LF
-      lines.push(incompleteLine)
-      incompleteLine = ''
+    // Determine line end
+    let lineEnd = -1
+    if (crIndex !== -1 && lfIndex !== -1) {
+      // CRLF case
+      lineEnd = Math.min(crIndex, lfIndex)
+    } else if (crIndex !== -1) {
+      lineEnd = crIndex
+    } else if (lfIndex !== -1) {
+      lineEnd = lfIndex
+    }
+
+    // Extract line if terminator found
+    if (lineEnd === -1) {
+      // No terminator found, rest is incomplete
+      incompleteLine = chunk.slice(searchIndex)
+      break
     } else {
-      incompleteLine += char
+      const line = chunk.slice(searchIndex, lineEnd)
+      lines.push(line)
+
+      // Move past line terminator
+      searchIndex = lineEnd + 1
+      if (chunk[searchIndex - 1] === '\r' && chunk[searchIndex] === '\n') {
+        searchIndex++
+      }
     }
   }
 
