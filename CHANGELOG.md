@@ -5,6 +5,13 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.0.1](https://github.com/rexxars/eventsource-parser/compare/v3.0.0...v3.0.1) (2025-03-27)
+
+### Bug Fixes
+
+- optimize `splitLines` function ([8952917](https://github.com/rexxars/eventsource-parser/commit/8952917a6f5b3d8c97175d00980538edc96b611d))
+- throw helpful error if passing function to `createParser()` ([4cd3a44](https://github.com/rexxars/eventsource-parser/commit/4cd3a443f21c441be29e524637a3a603d4425a12))
+
 ## [3.0.0](https://github.com/rexxars/eventsource-parser/compare/v2.0.1...v3.0.0) (2024-10-19)
 
 ### ⚠ BREAKING CHANGES
