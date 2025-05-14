@@ -5,7 +5,7 @@
   "sideEffects": false,
   "type": "module",
   "types": "./dist/index.d.ts",
-  "module": "./dist/index.esm.js",
+  "module": "./dist/index.js",
   "main": "./dist/index.cjs",
   "exports": {
     ".": {
@@ -41,8 +41,7 @@
   ],
   "files": [
     "dist",
-    "src",
-    "stream.js"
+    "src"
   ],
   "scripts": {
     "build": "pkg-utils build && pkg-utils --strict",
@@ -63,7 +62,7 @@
     "server-sent-events"
   ],
   "devDependencies": {
-    "@sanity/pkg-utils": "^6.11.4",
+    "@sanity/pkg-utils": "^7.2.2",
     "@sanity/semantic-release-preset": "^5.0.0",
     "@types/node": "^18.0.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
@@ -71,13 +70,13 @@
     "eslint": "^8.51.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-config-sanity": "^7.1.2",
-    "eventsource-encoder": "^1.0.0",
-    "prettier": "^3.3.3",
+    "eventsource-encoder": "^1.0.1",
+    "prettier": "^3.5.3",
     "rimraf": "^6.0.1",
     "rollup-plugin-visualizer": "^5.12.0",
-    "semantic-release": "^24.0.0",
-    "typescript": "^5.5.4",
-    "vitest": "^2.0.5"
+    "semantic-release": "^24.2.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.3"
   },
   "homepage": "https://github.com/rexxars/eventsource-parser#readme",
   "bugs": {

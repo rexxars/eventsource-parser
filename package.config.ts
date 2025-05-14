@@ -4,8 +4,6 @@ import {visualizer} from 'rollup-plugin-visualizer'
 import {name, version} from './package.json'
 
 export default defineConfig({
-  legacyExports: true,
-
   extract: {
     rules: {
       'tsdoc-undefined-tag': 'off',
