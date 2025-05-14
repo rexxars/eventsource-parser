@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.0.2](https://github.com/rexxars/eventsource-parser/compare/v3.0.1...v3.0.2) (2025-05-14)
+
+### Bug Fixes
+
+- drop legacy module export, use shared esm ([26ccc1c](https://github.com/rexxars/eventsource-parser/commit/26ccc1c9ae95aeebee8fc3417c6067608c656125))
+
 ## [3.0.1](https://github.com/rexxars/eventsource-parser/compare/v3.0.0...v3.0.1) (2025-03-27)
 
 ### Bug Fixes
