@@ -42,7 +42,8 @@
   "files": [
     "dist",
     "!dist/stats.html",
-    "src"
+    "src",
+    "stream.js"
   ],
   "scripts": {
     "build": "pkg-utils build && pkg-utils --strict",
