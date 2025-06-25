@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.0.3](https://github.com/rexxars/eventsource-parser/compare/v3.0.2...v3.0.3) (2025-06-25)
+
+### Bug Fixes
+
+- reintroduce legacy exports for stream module ([6be2292](https://github.com/rexxars/eventsource-parser/commit/6be229233dbebe553c63fc263d6ae2886c70acee))
+
 ## [3.0.2](https://github.com/rexxars/eventsource-parser/compare/v3.0.1...v3.0.2) (2025-05-14)
 
 ### Bug Fixes
