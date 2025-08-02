@@ -31,7 +31,7 @@ import {createParser, type EventSourceMessage} from 'eventsource-parser'
 function onEvent(event: EventSourceMessage) {
   console.log('Received event!')
   console.log('id: %s', event.id || '<none>')
-  console.log('name: %s', event.name || '<none>')
+  console.log('event: %s', event.event || '<none>')
   console.log('data: %s', event.data)
 }
 
