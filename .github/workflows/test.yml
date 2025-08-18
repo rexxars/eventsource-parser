@@ -2,17 +2,6 @@ name: Test
 on:
   push:
   workflow_dispatch:
-    inputs:
-      deno:
-        description: 'Test on deno'
-        required: true
-        default: true
-        type: boolean
-      bun:
-        description: 'Test on bun'
-        required: true
-        default: true
-        type: boolean
 
 jobs:
   testNode:
@@ -48,7 +37,6 @@ jobs:
 
   testDeno:
     name: 'Test: Deno'
-    if: always() && (github.event.inputs.deno == 'true' || github.event.inputs.deno == null)
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
@@ -63,7 +51,6 @@ jobs:
 
   testBun:
     name: 'Test: Bun'
-    if: always() && (github.event.inputs.bun == 'true' || github.event.inputs.bun == null)
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
@@ -75,3 +62,32 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Run tests
         run: npm run test:bun
+
+  build:
+    name: 'Build'
+    needs: [testNode, testDeno, testBun]
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+      - name: Cache node modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        env:
+          cache-name: cache-node-modules
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-${{ env.cache-name }}-node-22.x-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-modules-${{ env.cache-name }}--node-22.x-
+            ${{ runner.os }}-modules-${{ env.cache-name }}
+            ${{ runner.os }}-modules-
+            ${{ runner.os }}-
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+      - name: Build
+        run: npm run build
