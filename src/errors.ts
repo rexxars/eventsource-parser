@@ -18,17 +18,17 @@ export class ParseError extends Error {
   /**
    * In the case of an unknown field encountered in the stream, this will be the field name.
    */
-  field?: string
+  field?: string | undefined
 
   /**
    * In the case of an unknown field encountered in the stream, this will be the value of the field.
    */
-  value?: string
+  value?: string | undefined
 
   /**
    * The line that caused the error, if available.
    */
-  line?: string
+  line?: string | undefined
 
   constructor(
     message: string,

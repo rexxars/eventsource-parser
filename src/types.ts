@@ -11,7 +11,7 @@ export interface EventSourceParser {
   /**
    * Feeds the parser another chunk. The method _does not_ return a parsed message.
    * Instead, callbacks passed when creating the parser will be triggered once we see enough data
-   * for a valid/invalid parsing step (see @link {ParserCallbacks}).
+   * for a valid/invalid parsing step (see {@link ParserCallbacks}).
    *
    * @param chunk - The chunk to parse. Can be a partial, eg in the case of streaming messages.
    * @public
@@ -43,13 +43,13 @@ export interface EventSourceMessage {
    * implementation in that browsers will default this to `message`, whereas this parser will
    * leave this as `undefined` if not explicitly declared.
    */
-  event?: string
+  event?: string | undefined
 
   /**
    * ID of the message, if any was provided by the server. Can be used by clients to keep the
    * last received message ID in sync when reconnecting.
    */
-  id?: string
+  id?: string | undefined
 
   /**
    * The data received for this message
@@ -70,21 +70,21 @@ export interface ParserCallbacks {
    *
    * @param event - The parsed event/message
    */
-  onEvent?: (event: EventSourceMessage) => void
+  onEvent?: ((event: EventSourceMessage) => void) | undefined
 
   /**
    * Callback for when the server sends a new reconnection interval through the `retry` field.
    *
    * @param retry - The number of milliseconds to wait before reconnecting.
    */
-  onRetry?: (retry: number) => void
+  onRetry?: ((retry: number) => void) | undefined
 
   /**
    * Callback for when a comment is encountered in the stream.
    *
    * @param comment - The comment encountered in the stream.
    */
-  onComment?: (comment: string) => void
+  onComment?: ((comment: string) => void) | undefined
 
   /**
    * Callback for when an error occurs during parsing. This is a catch-all for any errors
@@ -93,5 +93,5 @@ export interface ParserCallbacks {
    *
    * @param error - The error that occurred during parsing
    */
-  onError?: (error: ParseError) => void
+  onError?: ((error: ParseError) => void) | undefined
 }

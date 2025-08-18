@@ -325,7 +325,7 @@ test('stream with huge data chunks', async () => {
   const parser = createParser({onEvent: mock.onParse})
   await getHugeMessageFixtureStream(parser.feed)
   const hugeMsg = mock.events[0]
-  if (hugeMsg.type !== 'event') {
+  if (!hugeMsg || hugeMsg.type !== 'event') {
     throw new Error('First message was not an event')
   }
 
@@ -333,7 +333,7 @@ test('stream with huge data chunks', async () => {
 
   const receivedHash = createHash('sha256').update(hugeMsg.data).digest('hex')
   const hashMsg = mock.events[1]
-  if (hashMsg.type !== 'event') {
+  if (!hashMsg || hashMsg.type !== 'event') {
     throw new Error('Second message was not an event')
   }
 
@@ -387,7 +387,7 @@ test('calls onError when the stream is invalid but not newline-terminated (throu
   expect(onEvent).not.toHaveBeenCalled()
   expect(onError).toHaveBeenCalled()
 
-  const error = onError.mock.calls[0][0]
+  const error = onError.mock.calls[0]?.[0]
   expect(error).toBeInstanceOf(ParseError)
   expect(error).toMatchObject({
     type: 'unknown-field',
@@ -411,7 +411,7 @@ test('calls onError when the stream is invalid (through newline)', async () => {
   expect(onEvent).not.toHaveBeenCalled()
   expect(onError).toHaveBeenCalled()
 
-  const error = onError.mock.calls[0][0]
+  const error = onError.mock.calls[0]?.[0]
   expect(error).toBeInstanceOf(ParseError)
   expect(error).toMatchObject({
     type: 'unknown-field',
@@ -430,7 +430,7 @@ test('calls onError when the stream is invalid (no field separator)', async () =
   expect(onEvent).not.toHaveBeenCalled()
   expect(onError).toHaveBeenCalled()
 
-  const error = onError.mock.calls[0][0]
+  const error = onError.mock.calls[0]?.[0]
   expect(error).toBeInstanceOf(ParseError)
   expect(error).toMatchObject({
     type: 'unknown-field',

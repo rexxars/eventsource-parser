@@ -16,21 +16,21 @@ export interface StreamOptions {
    *
    * @defaultValue `undefined`
    */
-  onError?: 'terminate' | ((error: Error) => void)
+  onError?: ('terminate' | ((error: Error) => void)) | undefined
 
   /**
    * Callback for when a reconnection interval is sent from the server.
    *
    * @param retry - The number of milliseconds to wait before reconnecting.
    */
-  onRetry?: (retry: number) => void
+  onRetry?: ((retry: number) => void) | undefined
 
   /**
    * Callback for when a comment is encountered in the stream.
    *
    * @param comment - The comment encountered in the stream.
    */
-  onComment?: (comment: string) => void
+  onComment?: ((comment: string) => void) | undefined
 }
 
 /**

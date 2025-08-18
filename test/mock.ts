@@ -3,9 +3,9 @@ import {expect, vi} from 'vitest'
 import type {EventSourceMessage, ParserCallbacks} from '../src/types.ts'
 
 interface MessageMatcher {
-  id?: string | RegExp
-  event?: string
-  data?: string | RegExp
+  id?: string | RegExp | undefined
+  event?: string | undefined
+  data?: string | RegExp | undefined
 }
 
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types

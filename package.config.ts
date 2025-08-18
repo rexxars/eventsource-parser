@@ -4,6 +4,8 @@ import {visualizer} from 'rollup-plugin-visualizer'
 import {name, version} from './package.json'
 
 export default defineConfig({
+  tsconfig: './tsconfig.build.json',
+
   extract: {
     rules: {
       'tsdoc-undefined-tag': 'off',
