@@ -10,8 +10,8 @@ import type {ParseError} from './errors.ts'
 export interface EventSourceParser {
   /**
    * Feeds the parser another chunk. The method _does not_ return a parsed message.
-   * Instead, if the chunk was a complete message (or completed a previously incomplete message),
-   * it will invoke the `onParse` callback used to create the parsers.
+   * Instead, callbacks passed when creating the parser will be triggered once we see enough data
+   * for a valid/invalid parsing step (see @link {ParserCallbacks}).
    *
    * @param chunk - The chunk to parse. Can be a partial, eg in the case of streaming messages.
    * @public
