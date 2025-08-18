@@ -11,7 +11,7 @@ export interface EventSourceParser {
   /**
    * Feeds the parser another chunk. The method _does not_ return a parsed message.
    * Instead, if the chunk was a complete message (or completed a previously incomplete message),
-   * it will invoke the `onParse` callback used to create the parsers.
+   * it will invoke the `onEvent` callback used to create the parser.
    *
    * @param chunk - The chunk to parse. Can be a partial, eg in the case of streaming messages.
    * @public
