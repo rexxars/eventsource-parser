@@ -48,7 +48,7 @@ jobs:
 
   testDeno:
     name: 'Test: Deno'
-    if: always() && github.event.inputs.deno == 'true'
+    if: always() && (github.event.inputs.deno == 'true' || github.event.inputs.deno == null)
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
@@ -61,7 +61,7 @@ jobs:
 
   testBun:
     name: 'Test: Bun'
-    if: always() && github.event.inputs.bun == 'true'
+    if: always() && (github.event.inputs.bun == 'true' || github.event.inputs.bun == null)
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
