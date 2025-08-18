@@ -268,6 +268,18 @@ test('stream with oddly shaped data field', async () => {
   mock.expectNextMessage({data: 'test'})
 })
 
+test('stream with cr separating chunks of same event', async () => {
+  const mock = getParseResultMock()
+  const parser = createParser(mock.callbacks)
+  parser.feed('data: A\r\n')
+  parser.feed('data: B\r')
+  parser.feed('\n')
+  parser.feed('data: C\r\n')
+  parser.feed('\n')
+
+  expect(mock.events).toHaveLength(1)
+})
+
 test('stream with partially incorrect retry fields', async () => {
   const mock = getParseResultMock()
   const parser = createParser(mock.callbacks)
