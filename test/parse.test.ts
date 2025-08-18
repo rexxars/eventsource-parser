@@ -269,6 +269,16 @@ test('stream with oddly shaped data field', async () => {
 })
 
 test('stream with cr separating chunks of same event', async () => {
+  // CR at the end of a chunk might be part of a CRLF sequence that spans chunks,
+  // so we shouldn't treat it as a line terminator (yet). If we terminated it as a
+  // complete line, we would emit two events instead of one. For the below example:
+
+  // { id: undefined, event: undefined, data: 'A\nB' }
+  // { id: undefined, event: undefined, data: 'C' }
+  // -- instead of --
+  // { id: undefined, event: undefined, data: 'A\nB\nC' }
+  // See https://github.com/rexxars/eventsource-parser/issues/17 for more information.
+
   const mock = getParseResultMock()
   const parser = createParser(mock.callbacks)
   parser.feed('data: A\r\n')

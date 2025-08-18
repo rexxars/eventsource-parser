@@ -200,7 +200,13 @@ function splitLines(chunk: string): [complete: Array<string>, incomplete: string
       // CRLF case
       lineEnd = Math.min(crIndex, lfIndex)
     } else if (crIndex !== -1) {
-      lineEnd = crIndex
+      // CR at the end of a chunk might be part of a CRLF sequence that spans chunks,
+      // so we shouldn't treat it as a line terminator (yet)
+      if (crIndex === chunk.length - 1) {
+        lineEnd = -1
+      } else {
+        lineEnd = crIndex
+      }
     } else if (lfIndex !== -1) {
       lineEnd = lfIndex
     }
