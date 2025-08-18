@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.0.4](https://github.com/rexxars/eventsource-parser/compare/v3.0.3...v3.0.4) (2025-08-18)
+
+### Bug Fixes
+
+- cr+lf spanning chunks emit two events instead of one ([85f4519](https://github.com/rexxars/eventsource-parser/commit/85f4519e264b4320a103effb85ed903ad86513a7)), closes [#17](https://github.com/rexxars/eventsource-parser/issues/17)
+
 ## [3.0.3](https://github.com/rexxars/eventsource-parser/compare/v3.0.2...v3.0.3) (2025-06-25)
 
 ### Bug Fixes
