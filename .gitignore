@@ -44,7 +44,6 @@ jspm_packages
 
 # Non-npm lockfiles
 yarn.lock
-deno.lock
 pnpm-lock.yaml
 
 # Cache

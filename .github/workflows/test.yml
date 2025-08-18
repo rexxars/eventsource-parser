@@ -56,6 +56,8 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+      - name: Install Dependencies
+        run: deno install --allow-scripts
       - name: Run tests
         run: npm run test:deno
 
