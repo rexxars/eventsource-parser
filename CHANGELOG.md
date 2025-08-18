@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.0.5](https://github.com/rexxars/eventsource-parser/compare/v3.0.4...v3.0.5) (2025-08-18)
+
+### Bug Fixes
+
+- **types:** use exact optional property types ([a763097](https://github.com/rexxars/eventsource-parser/commit/a7630973185e8691df8180c1b2e0de9b4dcc9f7d))
+
 ## [3.0.4](https://github.com/rexxars/eventsource-parser/compare/v3.0.3...v3.0.4) (2025-08-18)
 
 ### Bug Fixes
