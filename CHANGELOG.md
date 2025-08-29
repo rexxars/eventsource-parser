@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.0.6](https://github.com/rexxars/eventsource-parser/compare/v3.0.5...v3.0.6) (2025-08-29)
+
+### Bug Fixes
+
+- reintroduce explicit support for node 18 ([d845cef](https://github.com/rexxars/eventsource-parser/commit/d845cef33eca3ce22423d8684b46b78ccb2cf42f))
+
 ## [3.0.5](https://github.com/rexxars/eventsource-parser/compare/v3.0.4...v3.0.5) (2025-08-18)
 
 ### Bug Fixes
