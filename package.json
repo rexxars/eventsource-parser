@@ -33,7 +33,7 @@
     "node": ">=18.0.0"
   },
   "browserslist": [
-    "node >= 20",
+    "node >= 18",
     "chrome >= 71",
     "safari >= 14.1",
     "firefox >= 105",
