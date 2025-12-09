@@ -313,6 +313,38 @@ test('stream with partially incorrect retry fields', async () => {
   mock.expectNumberOfMessagesToBe(1)
 })
 
+test('stream with incorrect retry fields', async () => {
+  const mock = getParseResultMock()
+  const parser = createParser(mock.callbacks)
+  parser.feed(`
+retry: 500
+
+data: first
+
+retry: 50x
+
+data: second
+
+`)
+
+  expect(mock.events[0]).toMatchObject({type: 'reconnect-interval', value: 500})
+  expect(mock.events[1]).toMatchObject({type: 'event', data: 'first', event: undefined})
+  expect(mock.events[2]).toMatchObject({
+    type: 'error',
+    error: expect.toSatisfy(
+      (err: Error) =>
+        err instanceof Error &&
+        err.message === 'Invalid `retry` value: "50x"' &&
+        'type' in err &&
+        err.type === 'invalid-retry',
+    ),
+    message: 'Invalid `retry` value: "50x"',
+  })
+
+  expect(mock.events[3]).toMatchObject({type: 'event', data: 'second', event: undefined})
+  mock.expectNumberOfMessagesToBe(2)
+})
+
 test('stream with unknown fields in the stream', async () => {
   const mock = getParseResultMock()
   const parser = createParser({onEvent: mock.onParse})
