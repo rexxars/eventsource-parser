@@ -329,16 +329,22 @@ data: second
 
   expect(mock.events[0]).toMatchObject({type: 'reconnect-interval', value: 500})
   expect(mock.events[1]).toMatchObject({type: 'event', data: 'first', event: undefined})
-  expect(mock.events[2]).toMatchObject({
-    type: 'error',
-    error: expect.toSatisfy(
-      (err: Error) =>
-        err instanceof Error &&
-        err.message === 'Invalid `retry` value: "50x"' &&
-        'type' in err &&
-        err.type === 'invalid-retry',
-    ),
-    message: 'Invalid `retry` value: "50x"',
+  expect(mock.events[2]).toSatisfy((event) => {
+    return (
+      // Event is of type `error`
+      typeof event === 'object' &&
+      'type' in event &&
+      event.type === 'error' &&
+      // Event has `message` property
+      'message' in event &&
+      event.message === 'Invalid `retry` value: "50x"' &&
+      // `error` property is an Error with `type`
+      'error' in event &&
+      event.error instanceof Error &&
+      event.error.message === 'Invalid `retry` value: "50x"' &&
+      'type' in event.error &&
+      event.error.type === 'invalid-retry'
+    )
   })
 
   expect(mock.events[3]).toMatchObject({type: 'event', data: 'second', event: undefined})
