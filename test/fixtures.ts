@@ -1,3 +1,5 @@
+import {nextTick} from 'node:process'
+
 import {encode, encodeComment, encodeData} from 'eventsource-encoder'
 
 import {MULTIBYTE_EMOJIS, MULTIBYTE_LINES} from './multibyte.ts'
@@ -297,7 +299,7 @@ export async function getHugeMessageFixtureStream(onChunk: OnChunkCallback): Pro
 }
 
 function delay(): Promise<void> {
-  return new Promise((resolve) => setImmediate(resolve))
+  return new Promise((resolve) => nextTick(resolve))
 }
 
 function randomString() {
