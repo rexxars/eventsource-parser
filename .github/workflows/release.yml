@@ -29,6 +29,11 @@ jobs:
     name: 'Release: Publish to NPM'
     if: always() && github.event.inputs.release == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # create GitHub releases, push tags
+      issues: write # semantic-release comments on released issues
+      pull-requests: write # semantic-release comments on released PRs
+      id-token: write # npm trusted publishing (OIDC)
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,4 +52,3 @@ jobs:
         if: always()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
