@@ -1,5 +1,3 @@
-import {createHash} from 'node:crypto'
-
 import {expect, test, vi} from 'vitest'
 
 import {ParseError} from '../src/errors.ts'
@@ -369,7 +367,7 @@ test('stream with huge data chunks', async () => {
 
   expect(hugeMsg.data.length).toBe(4808512)
 
-  const receivedHash = createHash('sha256').update(hugeMsg.data).digest('hex')
+  const receivedHash = await sha256(hugeMsg.data)
   const hashMsg = mock.events[1]
   if (!hashMsg || hashMsg.type !== 'event') {
     throw new Error('Second message was not an event')
@@ -486,3 +484,14 @@ test('passing a function to `createParser` will throw with helpful error', () =>
     '`callbacks` must be an object, got a function instead. Did you mean `{onEvent: fn}`?',
   )
 })
+
+async function sha256(message: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(message)
+  const hash = await crypto.subtle.digest('SHA-256', data)
+
+  // Return hex
+  return Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+}

@@ -8,7 +8,6 @@ interface MessageMatcher {
   data?: string | RegExp | undefined
 }
 
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export function getParseResultMock() {
   let messageIndex = -1
   const events: Array<

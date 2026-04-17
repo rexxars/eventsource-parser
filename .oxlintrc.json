@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error"
+  },
+  "env": {
+    "builtin": true,
+    "node": true
+  },
+  "ignorePatterns": ["dist", "coverage", "demo/dist", ".nyc_output"]
+}

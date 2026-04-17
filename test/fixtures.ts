@@ -1,5 +1,3 @@
-import {nextTick} from 'node:process'
-
 import {encode, encodeComment, encodeData} from 'eventsource-encoder'
 
 import {MULTIBYTE_EMOJIS, MULTIBYTE_LINES} from './multibyte.ts'
@@ -10,6 +8,18 @@ const TEN_MEGABYTES = 1024 * 1024 * 10
 const EMOJI_DATA = MULTIBYTE_EMOJIS.join(' ')
 const DATA_CHUNK = encodeData(`${MULTIBYTE_LINES.join('\n\n')}\n${EMOJI_DATA}`).trim()
 const DATA_CHUNK_LENGTH = new Blob([DATA_CHUNK]).size
+
+// We're not super pedantic on the exact timing here, doesn't really matter for the tests
+function nextTick(callback: () => void): void {
+  const global = globalThis as Record<string, unknown>
+  if (typeof queueMicrotask === 'function') {
+    queueMicrotask(callback)
+  } else if (typeof global['setImmediate'] === 'function') {
+    global['setImmediate'](callback)
+  } else {
+    setTimeout(callback, 0)
+  }
+}
 
 export async function getBasicFixtureStream(onChunk: OnChunkCallback): Promise<void> {
   for (let i = 0; i < 5; i++) {
@@ -32,7 +42,11 @@ export async function getTimeFixtureStream(onChunk: OnChunkCallback): Promise<vo
 export async function getTimeFixtureStreamChunked(onChunk: OnChunkCallback): Promise<void> {
   for (let i = 0; i < 30; i++) {
     await enqueRandomChunks(
-      encode({id: randomString(), event: 'time', data: new Date().toISOString()}),
+      encode({
+        id: randomString(),
+        event: 'time',
+        data: new Date().toISOString(),
+      }),
       onChunk,
     )
   }

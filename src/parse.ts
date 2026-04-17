@@ -5,7 +5,7 @@
 import {ParseError} from './errors.ts'
 import type {EventSourceParser, ParserCallbacks} from './types.ts'
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// oxlint-disable-next-line no-unused-vars
 function noop(_arg: unknown) {
   // intentional noop
 }
