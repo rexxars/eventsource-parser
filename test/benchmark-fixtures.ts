@@ -1,5 +1,7 @@
 import type {EventSourceMessage} from '../src/types.ts'
 
+import {MULTIBYTE_EMOJIS, MULTIBYTE_LINES} from './multibyte.ts'
+
 /**
  * Benchmark fixtures for eventsource-parser.
  *
@@ -8,13 +10,23 @@ import type {EventSourceMessage} from '../src/types.ts'
  * fixed `seed` and randomized (time-seeded) when `seed` is omitted, so benchmarks can't win by
  * caching across invocations.
  *
- * The four shapes cover distinct hot-path branches in the parser:
+ * The shapes cover distinct hot-path branches in the parser:
  *
  *   - data-only: single `data: <json>\n\n` events, exercising the single-event fast path.
  *   - named-event: `event: <t>\ndata: <json>\n\n` events, exercising the inline prefix checks
  *     and the multi-field accumulator.
+ *   - identified-event: `id: <n>\nevent: <t>\ndata: <json>\n\n`, also exercising the inline
+ *     `id:` prefix check on every event.
  *   - small-chunk: a stream re-chunked at arbitrary character boundaries, exercising the
  *     incomplete-line buffering across feed() calls.
+ *   - multibyte: data-only events whose payloads are UTF-8 text and emoji — stresses String
+ *     primitives where character count and code-unit count diverge.
+ *   - heartbeat: data events interleaved with `: keep-alive\n` comment chunks, one complete
+ *     line per `feed()` call. Exercises the comment fast path at high frequency.
+ *   - idle-stream: an idle connection that sends a bare `:` per `feed()` to hold the socket
+ *     open — no newlines until a real event eventually arrives. Exercises the
+ *     incomplete-line buffer under worst-case growth (each feed rescans the full buffer
+ *     for `\r`/`\n`).
  *   - edge-cases: a mix that falls off the fast path (CRLF, comments, multi-line data,
  *     unknown fields, split CRLF pairs).
  */
@@ -154,6 +166,117 @@ export function createNamedEventFixture(options: FixtureOptions = {}): Benchmark
   push('message-stop', {type: 'message-stop'})
 
   return {chunks, events}
+}
+
+/**
+ * A stream with `id:` + `event:` + `data:` on every event.
+ *
+ * Exercises the inline `id:` prefix check alongside the `event:` / `data:` ones, plus the
+ * per-dispatch `id` reset that only matters when `id:` is actually used.
+ */
+export function createIdentifiedEventFixture(options: FixtureOptions = {}): BenchmarkFixture {
+  const rng = makeRng(options.seed)
+  const count = options.count ?? 128
+
+  const chunks: string[] = []
+  const events: EventSourceMessage[] = []
+
+  for (let i = 0; i < count; i++) {
+    const id = String(1000 + i)
+    const payload = {index: i, text: randomToken(rng)}
+    const json = JSON.stringify(payload)
+    chunks.push(`id: ${id}\nevent: tick\ndata: ${json}\n\n`)
+    events.push({id, event: 'tick', data: json})
+  }
+
+  return {chunks, events}
+}
+
+/**
+ * A stream of `data:` events whose payloads are full of multi-byte UTF-8.
+ *
+ * Real-world LLM streams carry non-ASCII content (natural language in many scripts, emoji,
+ * combining sequences). This fixture pulls from the same multi-byte corpus the correctness
+ * tests use, but sizes the stream up to benchmark scale so the per-iteration cost isn't
+ * dominated by setup.
+ */
+export function createMultibyteFixture(options: FixtureOptions = {}): BenchmarkFixture {
+  // seed is accepted for API consistency with other fixtures, but the multibyte corpus is
+  // indexed deterministically — there's no RNG-driven variation needed here.
+  void options.seed
+  const count = options.count ?? 128
+
+  const chunks: string[] = []
+  const events: EventSourceMessage[] = []
+
+  for (let i = 0; i < count; i++) {
+    const line = MULTIBYTE_LINES[i % MULTIBYTE_LINES.length]!
+    // A handful of emojis per event — emojis are the worst case for multi-byte String
+    // handling because many are ZWJ sequences (multiple code points per grapheme).
+    const emojiStart = (i * 5) % MULTIBYTE_EMOJIS.length
+    const emojis = MULTIBYTE_EMOJIS.slice(emojiStart, emojiStart + 5).join(' ')
+    const data = `${line} ${emojis}`
+    chunks.push(`data: ${data}\n\n`)
+    events.push({id: undefined, event: undefined, data})
+  }
+
+  return {chunks, events}
+}
+
+/**
+ * A heartbeat-heavy idle-ish stream.
+ *
+ * Between every few real events the server sends line-terminated `: keep-alive\n` comments,
+ * each delivered as its own `feed()` chunk. Every chunk ends with `\n`, so the parser
+ * dispatches each comment immediately without buffering — this is the "hot comment path"
+ * shape, where `line.startsWith(':')` is the dominant branch.
+ */
+export function createHeartbeatFixture(options: FixtureOptions = {}): BenchmarkFixture {
+  const rng = makeRng(options.seed)
+  const count = options.count ?? 64
+  const beatsPerEvent = 4
+
+  const chunks: string[] = []
+  const events: EventSourceMessage[] = []
+
+  for (let i = 0; i < count; i++) {
+    for (let b = 0; b < beatsPerEvent; b++) {
+      chunks.push(': keep-alive\n')
+    }
+    const data = randomToken(rng).trim() || 'tick'
+    chunks.push(`data: ${data}\n\n`)
+    events.push({id: undefined, event: undefined, data})
+  }
+
+  return {chunks, events}
+}
+
+/**
+ * An idle connection that drips a bare `:` per `feed()` to hold the socket open, with no
+ * newline terminators until a real event eventually arrives.
+ *
+ * This is the worst-case shape for parsers that concatenate `incompleteLine + chunk` and
+ * rescan for `\r`/`\n` on every call: the incomplete-line buffer grows by one char per feed
+ * and is rescanned from the start each time, so the total scan work is O(n²) in the number
+ * of idle feeds. A well-meaning parser may also hold the entire accumulated string in memory
+ * until the terminator arrives.
+ */
+export function createIdleStreamFixture(options: FixtureOptions = {}): BenchmarkFixture {
+  const count = options.count ?? 512
+
+  const chunks: string[] = []
+  for (let i = 0; i < count; i++) {
+    chunks.push(':')
+  }
+  // Finally terminate the giant comment line and send one real event.
+  chunks.push('\ndata: finally\n\n')
+
+  // The long accumulated comment is emitted via onComment (not tracked here), so the only
+  // event produced is the final `data: finally`.
+  return {
+    chunks,
+    events: [{id: undefined, event: undefined, data: 'finally'}],
+  }
 }
 
 /**

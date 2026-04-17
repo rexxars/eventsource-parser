@@ -5,6 +5,10 @@ import type {EventSourceMessage} from '../src/types.ts'
 import {
   createDataOnlyFixture,
   createEdgeCasesFixture,
+  createHeartbeatFixture,
+  createIdentifiedEventFixture,
+  createIdleStreamFixture,
+  createMultibyteFixture,
   createNamedEventFixture,
   createSmallChunkFixture,
 } from './benchmark-fixtures.ts'
@@ -17,6 +21,10 @@ const SEED = 0xc0ffee
 const fixtures: Array<[string, FixtureFactory]> = [
   ['data-only', () => createDataOnlyFixture({seed: SEED, count: 24})],
   ['named-event', () => createNamedEventFixture({seed: SEED, count: 16})],
+  ['identified-event', () => createIdentifiedEventFixture({seed: SEED, count: 16})],
+  ['multibyte', () => createMultibyteFixture({seed: SEED, count: 20})],
+  ['heartbeat', () => createHeartbeatFixture({seed: SEED, count: 12})],
+  ['idle-stream', () => createIdleStreamFixture({count: 64})],
   ['small-chunk', () => createSmallChunkFixture({seed: SEED, count: 16, avgChunkSize: 6})],
   ['edge-cases', () => createEdgeCasesFixture()],
 ]
