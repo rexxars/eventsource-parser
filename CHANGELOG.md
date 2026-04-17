@@ -5,6 +5,16 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.0.7](https://github.com/rexxars/eventsource-parser/compare/v3.0.6...v3.0.7) (2026-04-17)
+
+### Bug Fixes
+
+- downgrade browserslist node.js declaration to node 18 ([50d3c2e](https://github.com/rexxars/eventsource-parser/commit/50d3c2ea4466c39d9e6ffed2d0f250351180321a))
+
+### Performance Improvements
+
+- ~3.75x faster parse via inline fast-paths and single-pass line processing ([2383efe](https://github.com/rexxars/eventsource-parser/commit/2383efe3fcdbfccad980b59a60539f245acb5950))
+
 ## [3.0.6](https://github.com/rexxars/eventsource-parser/compare/v3.0.5...v3.0.6) (2025-08-29)
 
 ### Bug Fixes
