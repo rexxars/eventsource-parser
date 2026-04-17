@@ -36,60 +36,161 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
   let isFirstChunk = true
   let id: string | undefined
   let data = ''
-  let eventType = ''
+  let dataLines = 0
+  let eventType: string | undefined
 
-  function feed(newChunk: string) {
-    // Strip any UTF8 byte order mark (BOM) at the start of the stream
-    const chunk = isFirstChunk ? newChunk.replace(/^\xEF\xBB\xBF/, '') : newChunk
-
-    // If there was a previous incomplete line, append it to the new chunk,
-    // so we may process it together as a new (hopefully complete) chunk.
-    const [complete, incomplete] = splitLines(`${incompleteLine}${chunk}`)
-
-    for (const line of complete) {
-      parseLine(line)
+  function feed(chunk: string) {
+    if (isFirstChunk) {
+      isFirstChunk = false
+      feedFirst(chunk)
+      return
     }
-
-    incompleteLine = incomplete
-    isFirstChunk = false
+    const input = incompleteLine === '' ? chunk : incompleteLine + chunk
+    incompleteLine = processLines(input)
   }
 
-  function parseLine(line: string) {
-    // If the line is empty (a blank line), dispatch the event
-    if (line === '') {
+  function feedFirst(chunk: string) {
+    if (
+      chunk.charCodeAt(0) === 0xef &&
+      chunk.charCodeAt(1) === 0xbb &&
+      chunk.charCodeAt(2) === 0xbf
+    ) {
+      chunk = chunk.slice(3)
+    }
+    const input = incompleteLine === '' ? chunk : incompleteLine + chunk
+    incompleteLine = processLines(input)
+  }
+
+  function processLines(chunk: string): string {
+    let searchIndex = 0
+
+    if (chunk.indexOf('\r') === -1) {
+      let lfIndex = chunk.indexOf('\n', searchIndex)
+      while (lfIndex !== -1) {
+        if (searchIndex === lfIndex) {
+          if (dataLines > 0) {
+            onEvent({id, event: eventType, data})
+          }
+          id = undefined
+          data = ''
+          dataLines = 0
+          eventType = undefined
+          searchIndex = lfIndex + 1
+          lfIndex = chunk.indexOf('\n', searchIndex)
+          continue
+        }
+        const fc = chunk.charCodeAt(searchIndex)
+        if (isDataPrefix(chunk, searchIndex, fc)) {
+          const vs = chunk.charCodeAt(searchIndex + 5) === 32 ? searchIndex + 6 : searchIndex + 5
+          const value = chunk.slice(vs, lfIndex)
+          if (dataLines === 0 && chunk.charCodeAt(lfIndex + 1) === 10) {
+            onEvent({id, event: eventType, data: value})
+            id = undefined
+            data = ''
+            eventType = undefined
+            searchIndex = lfIndex + 2
+            lfIndex = chunk.indexOf('\n', searchIndex)
+            continue
+          }
+          data = dataLines === 0 ? value : `${data}\n${value}`
+          dataLines++
+        } else if (isEventPrefix(chunk, searchIndex, fc)) {
+          eventType = chunk.slice(
+            chunk.charCodeAt(searchIndex + 6) === 32 ? searchIndex + 7 : searchIndex + 6,
+            lfIndex,
+          ) || undefined
+        } else {
+          parseLine(chunk, searchIndex, lfIndex)
+        }
+        searchIndex = lfIndex + 1
+        lfIndex = chunk.indexOf('\n', searchIndex)
+      }
+      return chunk.slice(searchIndex)
+    }
+
+    while (searchIndex < chunk.length) {
+      const crIndex = chunk.indexOf('\r', searchIndex)
+      const lfIndex = chunk.indexOf('\n', searchIndex)
+
+      let lineEnd = -1
+      if (crIndex !== -1 && lfIndex !== -1) {
+        lineEnd = crIndex < lfIndex ? crIndex : lfIndex
+      } else if (crIndex !== -1) {
+        if (crIndex === chunk.length - 1) {
+          lineEnd = -1
+        } else {
+          lineEnd = crIndex
+        }
+      } else if (lfIndex !== -1) {
+        lineEnd = lfIndex
+      }
+
+      if (lineEnd === -1) {
+        break
+      }
+
+      parseLine(chunk, searchIndex, lineEnd)
+      searchIndex = lineEnd + 1
+      if (chunk.charCodeAt(searchIndex - 1) === 13 && chunk.charCodeAt(searchIndex) === 10) {
+        searchIndex++
+      }
+    }
+
+    return chunk.slice(searchIndex)
+  }
+
+  function parseLine(chunk: string, start: number, end: number) {
+    if (start === end) {
       dispatchEvent()
       return
     }
 
-    // If the line starts with a U+003A COLON character (:), ignore the line.
-    if (line.startsWith(':')) {
+    const firstChar = chunk.charCodeAt(start)
+
+    if (isDataPrefix(chunk, start, firstChar)) {
+      const valueStart = chunk.charCodeAt(start + 5) === 32 ? start + 6 : start + 5
+      const value = chunk.slice(valueStart, end)
+      data = dataLines === 0 ? value : `${data}\n${value}`
+      dataLines++
+      return
+    }
+
+    if (isEventPrefix(chunk, start, firstChar)) {
+      eventType =
+        chunk.slice(chunk.charCodeAt(start + 6) === 32 ? start + 7 : start + 6, end) || undefined
+      return
+    }
+
+    // 'i' = 105 — fast path for "id:"
+    if (
+      firstChar === 105 &&
+      chunk.charCodeAt(start + 1) === 100 &&
+      chunk.charCodeAt(start + 2) === 58
+    ) {
+      const value = chunk.slice(chunk.charCodeAt(start + 3) === 32 ? start + 4 : start + 3, end)
+      id = value.includes('\0') ? undefined : value
+      return
+    }
+
+    // ':' = 58 — comment
+    if (firstChar === 58) {
       if (onComment) {
-        onComment(line.slice(line.startsWith(': ') ? 2 : 1))
+        const line = chunk.slice(start, end)
+        onComment(line.slice(chunk.charCodeAt(start + 1) === 32 ? 2 : 1))
       }
       return
     }
 
-    // If the line contains a U+003A COLON character (:)
+    const line = chunk.slice(start, end)
     const fieldSeparatorIndex = line.indexOf(':')
     if (fieldSeparatorIndex !== -1) {
-      // Collect the characters on the line before the first U+003A COLON character (:),
-      // and let `field` be that string.
       const field = line.slice(0, fieldSeparatorIndex)
-
-      // Collect the characters on the line after the first U+003A COLON character (:),
-      // and let `value` be that string. If value starts with a U+0020 SPACE character,
-      // remove it from value.
-      const offset = line[fieldSeparatorIndex + 1] === ' ' ? 2 : 1
+      const offset = line.charCodeAt(fieldSeparatorIndex + 1) === 32 ? 2 : 1
       const value = line.slice(fieldSeparatorIndex + offset)
-
       processField(field, value, line)
       return
     }
 
-    // Otherwise, the string is not empty but does not contain a U+003A COLON character (:)
-    // Process the field using the whole line as the field name, and an empty string as the field value.
-    // 👆 This is according to spec. That means that a line that has the value `data` will result in
-    // a newline being added to the current `data` buffer, for instance.
     processField(line, '', line)
   }
 
@@ -98,12 +199,11 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
     switch (field) {
       case 'event':
         // Set the `event type` buffer to field value
-        eventType = value
+        eventType = value || undefined
         break
       case 'data':
-        // Append the field value to the `data` buffer, then append a single U+000A LINE FEED(LF)
-        // character to the `data` buffer.
-        data = `${data}${value}\n`
+        data = dataLines === 0 ? value : `${data}\n${value}`
+        dataLines++
         break
       case 'id':
         // If the field value does not contain U+0000 NULL, then set the `ID` buffer to
@@ -139,94 +239,54 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
   }
 
   function dispatchEvent() {
-    const shouldDispatch = data.length > 0
-    if (shouldDispatch) {
+    if (dataLines > 0) {
       onEvent({
         id,
-        event: eventType || undefined,
-        // If the data buffer's last character is a U+000A LINE FEED (LF) character,
-        // then remove the last character from the data buffer.
-        data: data.endsWith('\n') ? data.slice(0, -1) : data,
+        event: eventType,
+        data,
       })
     }
 
-    // Reset for the next event
     id = undefined
     data = ''
-    eventType = ''
+    dataLines = 0
+    eventType = undefined
   }
 
   function reset(options: {consume?: boolean} = {}) {
     if (incompleteLine && options.consume) {
-      parseLine(incompleteLine)
+      parseLine(incompleteLine, 0, incompleteLine.length)
     }
 
     isFirstChunk = true
     id = undefined
     data = ''
-    eventType = ''
+    dataLines = 0
+    eventType = undefined
     incompleteLine = ''
   }
 
   return {feed, reset}
 }
 
-/**
- * For the given `chunk`, split it into lines according to spec, and return any remaining incomplete line.
- *
- * @param chunk - The chunk to split into lines
- * @returns A tuple containing an array of complete lines, and any remaining incomplete line
- * @internal
- */
-function splitLines(chunk: string): [complete: Array<string>, incomplete: string] {
-  /**
-   * According to the spec, a line is terminated by either:
-   * - U+000D CARRIAGE RETURN U+000A LINE FEED (CRLF) character pair
-   * - a single U+000A LINE FEED(LF) character not preceded by a U+000D CARRIAGE RETURN(CR) character
-   * - a single U+000D CARRIAGE RETURN(CR) character not followed by a U+000A LINE FEED(LF) character
-   */
-  const lines: Array<string> = []
-  let incompleteLine = ''
-  let searchIndex = 0
-
-  while (searchIndex < chunk.length) {
-    // Find next line terminator
-    const crIndex = chunk.indexOf('\r', searchIndex)
-    const lfIndex = chunk.indexOf('\n', searchIndex)
-
-    // Determine line end
-    let lineEnd = -1
-    if (crIndex !== -1 && lfIndex !== -1) {
-      // CRLF case
-      lineEnd = Math.min(crIndex, lfIndex)
-    } else if (crIndex !== -1) {
-      // CR at the end of a chunk might be part of a CRLF sequence that spans chunks,
-      // so we shouldn't treat it as a line terminator (yet)
-      if (crIndex === chunk.length - 1) {
-        lineEnd = -1
-      } else {
-        lineEnd = crIndex
-      }
-    } else if (lfIndex !== -1) {
-      lineEnd = lfIndex
-    }
-
-    // Extract line if terminator found
-    if (lineEnd === -1) {
-      // No terminator found, rest is incomplete
-      incompleteLine = chunk.slice(searchIndex)
-      break
-    } else {
-      const line = chunk.slice(searchIndex, lineEnd)
-      lines.push(line)
-
-      // Move past line terminator
-      searchIndex = lineEnd + 1
-      if (chunk[searchIndex - 1] === '\r' && chunk[searchIndex] === '\n') {
-        searchIndex++
-      }
-    }
-  }
-
-  return [lines, incompleteLine]
+function isDataPrefix(chunk: string, i: number, fc: number): boolean {
+  return (
+    fc === 100 &&
+    chunk.charCodeAt(i + 1) === 97 &&
+    chunk.charCodeAt(i + 2) === 116 &&
+    chunk.charCodeAt(i + 3) === 97 &&
+    chunk.charCodeAt(i + 4) === 58
+  )
 }
+
+function isEventPrefix(chunk: string, i: number, fc: number): boolean {
+  return (
+    fc === 101 &&
+    chunk.charCodeAt(i + 1) === 118 &&
+    chunk.charCodeAt(i + 2) === 101 &&
+    chunk.charCodeAt(i + 3) === 110 &&
+    chunk.charCodeAt(i + 4) === 116 &&
+    chunk.charCodeAt(i + 5) === 58
+  )
+}
+
