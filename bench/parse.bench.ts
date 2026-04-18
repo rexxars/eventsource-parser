@@ -25,8 +25,10 @@ import {
   createDataOnlyFixture,
   createEdgeCasesFixture,
   createHeartbeatFixture,
+  createHugeLineDripFixture,
   createIdentifiedEventFixture,
   createIdleStreamFixture,
+  createLargeMultilineDataFixture,
   createMultibyteFixture,
   createNamedEventFixture,
   createSmallChunkFixture,
@@ -53,7 +55,13 @@ const FIXTURES = {
   multibyte: materialize(createMultibyteFixture({count: 128})),
   heartbeat: materialize(createHeartbeatFixture({count: 64})),
   'idle-stream': materialize(createIdleStreamFixture({count: 512})),
+  'huge-line-drip': materialize(
+    createHugeLineDripFixture({payloadSize: 256 * 1024, avgChunkSize: 4}),
+  ),
   'small-chunk': materialize(createSmallChunkFixture({count: 128, avgChunkSize: 8})),
+  'large-multiline-data': materialize(
+    createLargeMultilineDataFixture({linesPerEvent: 500, lineLength: 80}),
+  ),
   'edge-cases': materialize(createEdgeCasesFixture()),
 } as const satisfies Record<string, Fixture>
 
@@ -66,7 +74,9 @@ const CASES: CaseName[] = [
   'multibyte',
   'heartbeat',
   'idle-stream',
+  'huge-line-drip',
   'small-chunk',
+  'large-multiline-data',
   'edge-cases',
 ]
 

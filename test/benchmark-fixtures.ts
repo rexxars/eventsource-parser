@@ -27,6 +27,11 @@ import {MULTIBYTE_EMOJIS, MULTIBYTE_LINES} from './multibyte.ts'
  *     open — no newlines until a real event eventually arrives. Exercises the
  *     incomplete-line buffer under worst-case growth (each feed rescans the full buffer
  *     for `\r`/`\n`).
+ *   - huge-line-drip: a single large `data:` payload streamed in tiny variable-size chunks
+ *     with no terminator until the very end. Direct probe for the per-feed `prefix + chunk`
+ *     concatenation pattern, which is O(N²) in total bytes when the line spans many chunks.
+ *   - large-multiline-data: a single event built from many `data:` continuation lines.
+ *     Exercises the multi-line `data:` accumulator at scale.
  *   - edge-cases: a mix that falls off the fast path (CRLF, comments, multi-line data,
  *     unknown fields, split CRLF pairs).
  */
@@ -279,6 +284,47 @@ export function createIdleStreamFixture(options: FixtureOptions = {}): Benchmark
   }
 }
 
+export interface HugeLineDripOptions extends FixtureOptions {
+  /** Total payload size, in characters. Defaults to 256 KiB. */
+  payloadSize?: number
+  /** Average chunk size, in characters. Defaults to 4. */
+  avgChunkSize?: number
+}
+
+/**
+ * A single large `data:` line dripped to `feed()` in tiny, variable-size chunks.
+ *
+ * No newline arrives until the entire payload has been streamed in. Parsers that buffer
+ * the incomplete line by repeatedly running `incompleteLine = incompleteLine + chunk` are
+ * O(N·K) — N bytes spread across K chunks — because every feed copies the full accumulated
+ * prefix. Realistic shape of a long LLM response delivered with no intra-event newlines,
+ * or an MCP-style server that emits the full response as a single content block.
+ *
+ * Distinct from `idle-stream`, which exercises the comment-line buffering path; this
+ * fixture exercises the `data:` field path with the same buffering pathology.
+ */
+export function createHugeLineDripFixture(options: HugeLineDripOptions = {}): BenchmarkFixture {
+  const rng = makeRng(options.seed)
+  const payloadSize = options.payloadSize ?? 256 * 1024
+  const avg = options.avgChunkSize ?? 4
+
+  const payload = randomId(rng, payloadSize)
+  const full = `data: ${payload}\n\n`
+
+  const chunks: string[] = []
+  let pos = 0
+  while (pos < full.length) {
+    const size = 1 + Math.floor(rng() * (avg * 2 - 1))
+    chunks.push(full.slice(pos, pos + size))
+    pos += size
+  }
+
+  return {
+    chunks,
+    events: [{id: undefined, event: undefined, data: payload}],
+  }
+}
+
 /**
  * A stream sliced into many small, variable-size chunks.
  *
@@ -304,6 +350,45 @@ export function createSmallChunkFixture(options: SmallChunkOptions = {}): Benchm
   }
 
   return {chunks, events}
+}
+
+export interface LargeMultilineDataOptions extends FixtureOptions {
+  /** Number of `data:` continuation lines per event. Defaults to 500. */
+  linesPerEvent?: number
+  /** Approximate length of each `data:` line value, in characters. Defaults to 80. */
+  lineLength?: number
+}
+
+/**
+ * A single event built from many `data:` continuation lines.
+ *
+ * Per spec, multiple `data:` lines within one event are joined by `\n` into a single
+ * payload. Exercises the multi-line `data:` accumulator at scale (M lines, each L chars,
+ * dispatched as one event). Useful as a regression case when changing how `data:` lines
+ * are accumulated; the build-up cost is itself sensitive to whether the engine can
+ * represent the running concatenation lazily (V8 ConsString) versus eagerly flattening.
+ */
+export function createLargeMultilineDataFixture(
+  options: LargeMultilineDataOptions = {},
+): BenchmarkFixture {
+  const rng = makeRng(options.seed)
+  const lines = options.linesPerEvent ?? 500
+  const lineLength = options.lineLength ?? 80
+
+  const dataPrefix = 'data: '
+  const dataLines: string[] = []
+  const valueLines: string[] = []
+  for (let i = 0; i < lines; i++) {
+    const value = randomId(rng, lineLength)
+    valueLines.push(value)
+    dataLines.push(`${dataPrefix}${value}\n`)
+  }
+  const chunk = `${dataLines.join('')}\n`
+
+  return {
+    chunks: [chunk],
+    events: [{id: undefined, event: undefined, data: valueLines.join('\n')}],
+  }
 }
 
 /**

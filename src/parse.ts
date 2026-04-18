@@ -36,7 +36,13 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
 
   const {onEvent = noop, onError = noop, onRetry = noop, onComment} = callbacks
 
-  let incompleteLine = ''
+  // Trailing bytes from prior `feed()` calls that did not yet form a complete line.
+  // Stored as an array of fragments and only joined when a line terminator arrives.
+  // Concatenating per-feed (`prefix + chunk`) is O(N²) when a single SSE line spans
+  // many chunks (e.g. a large `data:` payload streamed in tiny slices, or an MCP-style
+  // server that emits one giant content block). Buffering as fragments + joining once
+  // makes the same workload linear.
+  const pendingFragments: string[] = []
 
   let isFirstChunk = true
   let id: string | undefined
@@ -50,36 +56,47 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
    * so callers can pass arbitrary slices of the stream without worrying about
    * line boundaries.
    *
-   * The first chunk is dispatched to {@link feedFirst} so the leading UTF-8
-   * BOM can be stripped before parsing begins.
+   * Per the SSE spec, a UTF-8 BOM (0xEF 0xBB 0xBF) at the start of the very
+   * first chunk is stripped before parsing.
+   *
+   * @see https://html.spec.whatwg.org/multipage/server-sent-events.html#parsing-an-event-stream
    */
   function feed(chunk: string) {
     if (isFirstChunk) {
       isFirstChunk = false
-      feedFirst(chunk)
+      if (
+        chunk.charCodeAt(0) === 0xef &&
+        chunk.charCodeAt(1) === 0xbb &&
+        chunk.charCodeAt(2) === 0xbf
+      ) {
+        chunk = chunk.slice(3)
+      }
+    }
+
+    // Hot path: no buffered prefix from a prior partial line. Hand the chunk
+    // straight to `processLines`, exactly like the original implementation.
+    // Zero new work in the common case (every chunk ends with `\n\n`).
+    if (pendingFragments.length === 0) {
+      const trailing = processLines(chunk)
+      if (trailing !== '') pendingFragments.push(trailing)
       return
     }
-    const input = incompleteLine === '' ? chunk : incompleteLine + chunk
-    incompleteLine = processLines(input)
-  }
 
-  /**
-   * Handles the very first chunk of the stream. Per the SSE spec, a UTF-8 BOM
-   * (0xEF 0xBB 0xBF) at the start of the stream must be stripped before
-   * parsing. After BOM handling, behaves identically to {@link feed}.
-   *
-   * @see https://html.spec.whatwg.org/multipage/server-sent-events.html#parsing-an-event-stream
-   */
-  function feedFirst(chunk: string) {
-    if (
-      chunk.charCodeAt(0) === 0xef &&
-      chunk.charCodeAt(1) === 0xbb &&
-      chunk.charCodeAt(2) === 0xbf
-    ) {
-      chunk = chunk.slice(3)
+    // We have a buffered prefix. If this chunk also has no terminator, append
+    // to the buffer without concatenating — that's the O(N²) trap we're
+    // avoiding (large single `data:` payload split across many tiny chunks).
+    if (chunk.indexOf('\n') === -1 && chunk.indexOf('\r') === -1) {
+      pendingFragments.push(chunk)
+      return
     }
-    const input = incompleteLine === '' ? chunk : incompleteLine + chunk
-    incompleteLine = processLines(input)
+
+    // Terminator arrived. Join the accumulated fragments + this chunk once,
+    // process, and buffer any new trailing partial line.
+    pendingFragments.push(chunk)
+    const input = pendingFragments.join('')
+    pendingFragments.length = 0
+    const trailing = processLines(input)
+    if (trailing !== '') pendingFragments.push(trailing)
   }
 
   /**
@@ -320,7 +337,8 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
   }
 
   function reset(options: {consume?: boolean} = {}) {
-    if (incompleteLine && options.consume) {
+    if (options.consume && pendingFragments.length > 0) {
+      const incompleteLine = pendingFragments.join('')
       parseLine(incompleteLine, 0, incompleteLine.length)
     }
 
@@ -329,7 +347,7 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
     data = ''
     dataLines = 0
     eventType = undefined
-    incompleteLine = ''
+    pendingFragments.length = 0
   }
 
   return {feed, reset}
