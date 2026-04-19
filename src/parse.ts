@@ -64,6 +64,8 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
   function feed(chunk: string) {
     if (isFirstChunk) {
       isFirstChunk = false
+      // Match and strip UTF-8 BOM from the start of the stream, if present.
+      // (Per the spec, this is only valid at the very start of the stream)
       if (
         chunk.charCodeAt(0) === 0xef &&
         chunk.charCodeAt(1) === 0xbb &&
