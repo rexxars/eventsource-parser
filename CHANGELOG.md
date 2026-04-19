@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.0.8](https://github.com/rexxars/eventsource-parser/compare/v3.0.7...v3.0.8) (2026-04-19)
+
+### Performance Improvements
+
+- avoid O(N²) when a single SSE event spans many chunks ([#28](https://github.com/rexxars/eventsource-parser/issues/28)) ([4c41223](https://github.com/rexxars/eventsource-parser/commit/4c41223bcb5add8cf3511592f4ed0f222e81dff0))
+
 ## [3.0.7](https://github.com/rexxars/eventsource-parser/compare/v3.0.6...v3.0.7) (2026-04-17)
 
 ### Bug Fixes
