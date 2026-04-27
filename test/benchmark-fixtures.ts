@@ -36,19 +36,19 @@ import {MULTIBYTE_EMOJIS, MULTIBYTE_LINES} from './multibyte.ts'
  *     unknown fields, split CRLF pairs).
  */
 
-export interface BenchmarkFixture {
+interface BenchmarkFixture {
   chunks: string[]
   events: EventSourceMessage[]
 }
 
-export interface FixtureOptions {
+interface FixtureOptions {
   /** Seed for the PRNG. If omitted, a time-based seed is used (non-deterministic). */
   seed?: number
   /** Number of content deltas/chunks to emit. Defaults differ per fixture. */
   count?: number
 }
 
-export interface SmallChunkOptions extends FixtureOptions {
+interface SmallChunkOptions extends FixtureOptions {
   /**
    * Average chunk size, in characters. Actual sizes are drawn uniformly from
    * [1, 2*avgChunkSize). Defaults to 8.
@@ -284,7 +284,7 @@ export function createIdleStreamFixture(options: FixtureOptions = {}): Benchmark
   }
 }
 
-export interface HugeLineDripOptions extends FixtureOptions {
+interface HugeLineDripOptions extends FixtureOptions {
   /** Total payload size, in characters. Defaults to 256 KiB. */
   payloadSize?: number
   /** Average chunk size, in characters. Defaults to 4. */
@@ -352,7 +352,7 @@ export function createSmallChunkFixture(options: SmallChunkOptions = {}): Benchm
   return {chunks, events}
 }
 
-export interface LargeMultilineDataOptions extends FixtureOptions {
+interface LargeMultilineDataOptions extends FixtureOptions {
   /** Number of `data:` continuation lines per event. Defaults to 500. */
   linesPerEvent?: number
   /** Approximate length of each `data:` line value, in characters. Defaults to 80. */
