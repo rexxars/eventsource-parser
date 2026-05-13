@@ -7,6 +7,7 @@ import {
   getCarriageReturnFixtureStream,
   getCarriageReturnLineFeedFixtureStream,
   getCommentsFixtureStream,
+  getConsecutiveJsonFixtureStream,
   getDataFieldParsingFixtureStream,
   getEmptyEventsFixtureStream,
   getEmptyRetryFixtureStream,
@@ -483,6 +484,54 @@ test('passing a function to `createParser` will throw with helpful error', () =>
   }).toThrowError(
     '`callbacks` must be an object, got a function instead. Did you mean `{onEvent: fn}`?',
   )
+})
+
+test('consecutive JSON object `data:` lines without blank-line boundary are split into separate events', async () => {
+  const mock = getParseResultMock()
+  const parser = createParser({onEvent: mock.onParse})
+  await getConsecutiveJsonFixtureStream(parser.feed)
+  mock.expectNextMessage({data: '{"index":0,"tool":"a"}', event: undefined})
+  mock.expectNextMessage({data: '{"index":1,"tool":"b"}', event: undefined})
+  mock.expectNextMessage({event: 'done', data: '✔'})
+})
+
+test('consecutive JSON `data:` lines in a single chunk produce separate events', async () => {
+  const mock = getParseResultMock()
+  const parser = createParser({onEvent: mock.onParse})
+  parser.feed('data: {"a":1}\ndata: {"b":2}\n\n')
+  mock.expectNextMessage({data: '{"a":1}'})
+  mock.expectNextMessage({data: '{"b":2}'})
+})
+
+test('consecutive JSON array `data:` lines produce separate events', async () => {
+  const mock = getParseResultMock()
+  const parser = createParser({onEvent: mock.onParse})
+  parser.feed('data: [1]\ndata: [2]\n\n')
+  mock.expectNextMessage({data: '[1]'})
+  mock.expectNextMessage({data: '[2]'})
+})
+
+test('plain-text multiline data is NOT split by the JSON heuristic', async () => {
+  const mock = getParseResultMock()
+  const parser = createParser({onEvent: mock.onParse})
+  await getMultilineFixtureStream(parser.feed)
+  mock.expectNextMessage({data: 'YHOO\n+2\n10', event: 'stock'})
+  mock.expectNextMessage({data: 'GOOG\n-8\n1881', event: 'stock'})
+})
+
+test('event type carries over correctly with implicit boundary dispatch', async () => {
+  const mock = getParseResultMock()
+  const parser = createParser({onEvent: mock.onParse})
+  parser.feed('event: tool_call\ndata: {"name":"get_weather"}\ndata: {"name":"get_time"}\n\n')
+  mock.expectNextMessage({data: '{"name":"get_weather"}', event: 'tool_call'})
+  mock.expectNextMessage({data: '{"name":"get_time"}', event: undefined})
+})
+
+test('JSON object followed by blank line still works normally', async () => {
+  const mock = getParseResultMock()
+  const parser = createParser({onEvent: mock.onParse})
+  parser.feed('data: {"valid":true}\n\n')
+  mock.expectNextMessage({data: '{"valid":true}'})
 })
 
 async function sha256(message: string): Promise<string> {

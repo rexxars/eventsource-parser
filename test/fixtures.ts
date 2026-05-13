@@ -312,6 +312,27 @@ export async function getHugeMessageFixtureStream(onChunk: OnChunkCallback): Pro
   )
 }
 
+/**
+ * Simulates a non-compliant SSE server that omits the blank-line (`\n\n`)
+ * boundary between consecutive JSON events — e.g. some LLM providers when
+ * streaming tool calls:
+ *
+ *   data: {"index":0,"tool":"a"}
+ *   data: {"index":1,"tool":"b"}
+ *   \n
+ *
+ * The heuristic in `isCompleteJsonValue()` should split these into two
+ * separate events instead of concatenating them into one malformed payload.
+ */
+export async function getConsecutiveJsonFixtureStream(
+  onChunk: OnChunkCallback,
+): Promise<void> {
+  onChunk('data: {"index":0,"tool":"a"}\n')
+  onChunk('data: {"index":1,"tool":"b"}\n\n')
+  await delay()
+  onChunk(encode({event: 'done', data: '✔'}))
+}
+
 function delay(): Promise<void> {
   return new Promise((resolve) => nextTick(resolve))
 }

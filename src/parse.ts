@@ -156,6 +156,20 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
             lfIndex = chunk.indexOf('\n', searchIndex)
             continue
           }
+          // Heuristic: if accumulated data looks like a complete JSON value
+          // and the new `data:` line starts a new JSON structure, the server
+          // likely omitted the blank-line boundary between events. Dispatch
+          // the accumulated event and start fresh.
+          if (dataLines > 0 && isCompleteJsonValue(data, value)) {
+            onEvent({id, event: eventType, data})
+            id = undefined
+            data = value
+            dataLines = 1
+            eventType = undefined
+            searchIndex = lfIndex + 1
+            lfIndex = chunk.indexOf('\n', searchIndex)
+            continue
+          }
           // Multi-line data: concatenate with newline separator per spec.
           data = dataLines === 0 ? value : `${data}\n${value}`
           dataLines++
@@ -231,6 +245,13 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
       // 'data:'.length === 5, 'data: '.length === 6
       const valueStart = chunk.charCodeAt(start + 5) === SPACE ? start + 6 : start + 5
       const value = chunk.slice(valueStart, end)
+      // Same implicit-boundary heuristic as the fast path above.
+      if (dataLines > 0 && isCompleteJsonValue(data, value)) {
+        dispatchEvent()
+        data = value
+        dataLines = 1
+        return
+      }
       data = dataLines === 0 ? value : `${data}\n${value}`
       dataLines++
       return
@@ -372,6 +393,33 @@ function isDataPrefix(chunk: string, i: number, firstCharCode: number): boolean 
     chunk.charCodeAt(i + 2) === 116 &&
     chunk.charCodeAt(i + 3) === 97 &&
     chunk.charCodeAt(i + 4) === 58
+  )
+}
+
+/**
+ * Checks if buffered `data` looks like a structurally complete JSON value
+ * (`}` or `]` terminator) and `nextValue` starts a new JSON structure (`{`
+ * or `[`). When both hold, it is likely that the server sent consecutive SSE
+ * events separated by a single `\n` instead of the required blank line.
+ *
+ * Some LLM providers (e.g. GLM-4.7 via Baseten) emit `data: {...}\ndata: {...}`
+ * without the `\n\n` boundary between events, which the spec-compliant parser
+ * would concatenate into one malformed payload. This heuristic detects the
+ * implicit boundary so each JSON object becomes its own event.
+ *
+ * Plain-text multiline data (e.g. `data: YHOO\ndata: +2\ndata: 10`) does not
+ * trigger this heuristic because the partial lines do not end with `}` or `]`.
+ */
+function isCompleteJsonValue(data: string, nextValue: string): boolean {
+  if (data.length === 0 || nextValue.length === 0) return false
+  const trimmedEnd = data.trimEnd()
+  if (trimmedEnd.length === 0) return false
+  const lastChar = trimmedEnd.charCodeAt(trimmedEnd.length - 1)
+  const firstChar = nextValue.charCodeAt(0)
+  // } → {  or  ] → [
+  return (
+    (lastChar === 125 && firstChar === 123) ||
+    (lastChar === 93 && firstChar === 91)
   )
 }
 
