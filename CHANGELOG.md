@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.1.0](https://github.com/rexxars/eventsource-parser/compare/v3.0.8...v3.1.0) (2026-05-27)
+
+### Features
+
+- add `maxBufferSize` option ([#32](https://github.com/rexxars/eventsource-parser/issues/32)) ([9bbcd07](https://github.com/rexxars/eventsource-parser/commit/9bbcd0746d2eecfe70ca4531ef19f52b09f4bae1))
+
 ## [3.0.8](https://github.com/rexxars/eventsource-parser/compare/v3.0.7...v3.0.8) (2026-04-19)
 
 ### Performance Improvements
