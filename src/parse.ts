@@ -27,7 +27,7 @@ function noop(_arg: unknown) {
 export function createParser(config: ParserConfig): EventSourceParser {
   if (typeof config === 'function') {
     throw new TypeError(
-      '`callbacks` must be an object, got a function instead. Did you mean `{onEvent: fn}`?',
+      '`config` must be an object, got a function instead. Did you mean `createParser({onEvent: fn})`?',
     )
   }
 
@@ -51,8 +51,8 @@ export function createParser(config: ParserConfig): EventSourceParser {
   let dataLines = 0
   let eventType: string | undefined
 
-  // Set after a `maxBufferSize` overflow. Once tripped, `feed()` becomes a no-op
-  // until `reset()` is called — see the comment on `maxBufferSize` in `ParserOptions`.
+  // Set after a `maxBufferSize` overflow. Once tripped, `feed()` throws until
+  // `reset()` is called — see the comment on `maxBufferSize` in `ParserConfig`.
   let terminated = false
 
   /**
