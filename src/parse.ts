@@ -3,7 +3,7 @@
  * @see https://html.spec.whatwg.org/multipage/server-sent-events.html
  */
 import {ParseError} from './errors.ts'
-import type {EventSourceParser, ParserCallbacks} from './types.ts'
+import type {EventSourceParser, ParserConfig} from './types.ts'
 
 // ASCII codes used in the hot parsing paths.
 const LF = 10
@@ -18,23 +18,20 @@ function noop(_arg: unknown) {
 /**
  * Creates a new EventSource parser.
  *
- * @param callbacks - Callbacks to invoke on different parsing events:
- *   - `onEvent` when a new event is parsed
- *   - `onError` when an error occurs
- *   - `onRetry` when a new reconnection interval has been sent from the server
- *   - `onComment` when a comment is encountered in the stream
+ * @param config - Parser configuration. Accepts callbacks (see {@link ParserCallbacks})
+ *   and options like `maxBufferSize` (see {@link ParserConfig}).
  *
  * @returns A new EventSource parser, with `parse` and `reset` methods.
  * @public
  */
-export function createParser(callbacks: ParserCallbacks): EventSourceParser {
-  if (typeof callbacks === 'function') {
+export function createParser(config: ParserConfig): EventSourceParser {
+  if (typeof config === 'function') {
     throw new TypeError(
       '`callbacks` must be an object, got a function instead. Did you mean `{onEvent: fn}`?',
     )
   }
 
-  const {onEvent = noop, onError = noop, onRetry = noop, onComment} = callbacks
+  const {onEvent = noop, onError = noop, onRetry = noop, onComment, maxBufferSize} = config
 
   // Trailing bytes from prior `feed()` calls that did not yet form a complete line.
   // Stored as an array of fragments and only joined when a line terminator arrives.
@@ -44,11 +41,19 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
   // makes the same workload linear.
   const pendingFragments: string[] = []
 
+  // Running total of `pendingFragments` lengths, kept in sync with the array so the
+  // `maxBufferSize` check doesn't have to walk the fragment list on every feed.
+  let pendingFragmentsLength = 0
+
   let isFirstChunk = true
   let id: string | undefined
   let data = ''
   let dataLines = 0
   let eventType: string | undefined
+
+  // Set after a `maxBufferSize` overflow. Once tripped, `feed()` becomes a no-op
+  // until `reset()` is called — see the comment on `maxBufferSize` in `ParserOptions`.
+  let terminated = false
 
   /**
    * Feeds a chunk of the SSE stream to the parser. Any trailing bytes that do
@@ -62,6 +67,12 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
    * @see https://html.spec.whatwg.org/multipage/server-sent-events.html#parsing-an-event-stream
    */
   function feed(chunk: string) {
+    if (terminated) {
+      throw new Error(
+        'Cannot feed parser: it was terminated after exceeding the configured max buffer size. Call `reset()` to resume parsing.',
+      )
+    }
+
     if (isFirstChunk) {
       isFirstChunk = false
       // Match and strip UTF-8 BOM from the start of the stream, if present.
@@ -80,7 +91,11 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
     // Zero new work in the common case (every chunk ends with `\n\n`).
     if (pendingFragments.length === 0) {
       const trailing = processLines(chunk)
-      if (trailing !== '') pendingFragments.push(trailing)
+      if (trailing !== '') {
+        pendingFragments.push(trailing)
+        pendingFragmentsLength = trailing.length
+      }
+      checkBufferSize()
       return
     }
 
@@ -89,6 +104,8 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
     // avoiding (large single `data:` payload split across many tiny chunks).
     if (chunk.indexOf('\n') === -1 && chunk.indexOf('\r') === -1) {
       pendingFragments.push(chunk)
+      pendingFragmentsLength += chunk.length
+      checkBufferSize()
       return
     }
 
@@ -97,8 +114,31 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
     pendingFragments.push(chunk)
     const input = pendingFragments.join('')
     pendingFragments.length = 0
+    pendingFragmentsLength = 0
     const trailing = processLines(input)
-    if (trailing !== '') pendingFragments.push(trailing)
+    if (trailing !== '') {
+      pendingFragments.push(trailing)
+      pendingFragmentsLength = trailing.length
+    }
+    checkBufferSize()
+  }
+
+  function checkBufferSize() {
+    if (maxBufferSize === undefined) return
+    if (pendingFragmentsLength + data.length <= maxBufferSize) return
+
+    terminated = true
+    pendingFragments.length = 0
+    pendingFragmentsLength = 0
+    id = undefined
+    data = ''
+    dataLines = 0
+    eventType = undefined
+    onError(
+      new ParseError(`Buffered data exceeded max buffer size of ${maxBufferSize} characters`, {
+        type: 'max-buffer-size-exceeded',
+      }),
+    )
   }
 
   /**
@@ -350,6 +390,8 @@ export function createParser(callbacks: ParserCallbacks): EventSourceParser {
     dataLines = 0
     eventType = undefined
     pendingFragments.length = 0
+    pendingFragmentsLength = 0
+    terminated = false
   }
 
   return {feed, reset}

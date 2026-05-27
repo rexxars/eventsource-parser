@@ -1,6 +1,7 @@
 import {encode} from 'eventsource-encoder'
-import {expect, test} from 'vitest'
+import {expect, test, vi} from 'vitest'
 
+import {ParseError} from '../src/errors.ts'
 import {type EventSourceMessage, EventSourceParserStream} from '../src/stream.ts'
 
 test('can use `EventSourceParserStream`', async () => {
@@ -40,4 +41,42 @@ test('can use `EventSourceParserStream`', async () => {
     })
     return
   }
+})
+
+test('maxBufferSize: terminates the stream when onError is `terminate`', async () => {
+  const response = new Response('x'.repeat(1024))
+  if (!response.body) {
+    throw new Error('No body')
+  }
+
+  const eventStream = response.body
+    .pipeThrough(new TextDecoderStream())
+    .pipeThrough(new EventSourceParserStream({maxBufferSize: 64, onError: 'terminate'}))
+    .getReader()
+
+  await expect(eventStream.read()).rejects.toBeInstanceOf(ParseError)
+})
+
+test('maxBufferSize: invokes custom onError function and errors the stream', async () => {
+  const onError = vi.fn()
+  const response = new Response('x'.repeat(1024))
+  if (!response.body) {
+    throw new Error('No body')
+  }
+
+  const eventStream = response.body
+    .pipeThrough(new TextDecoderStream())
+    .pipeThrough(new EventSourceParserStream({maxBufferSize: 64, onError}))
+    .getReader()
+
+  // Overflow is fatal, so the stream errors even though `onError` is a function
+  // (not 'terminate'). The user's `onError` still fires so they can observe the error.
+  await expect(eventStream.read()).rejects.toMatchObject({
+    type: 'max-buffer-size-exceeded',
+  })
+
+  expect(onError).toHaveBeenCalled()
+  const error = onError.mock.calls[0]?.[0]
+  expect(error).toBeInstanceOf(ParseError)
+  expect(error).toMatchObject({type: 'max-buffer-size-exceeded'})
 })

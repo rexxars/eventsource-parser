@@ -476,6 +476,89 @@ test('calls onError when the stream is invalid (no field separator)', async () =
   })
 })
 
+test('maxBufferSize: triggers on pending fragment overflow (no terminator)', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError, maxBufferSize: 16})
+
+  // Single feed under the limit — fine.
+  parser.feed('short start')
+  expect(onError).not.toHaveBeenCalled()
+
+  // Pushes the accumulated fragments past the limit.
+  parser.feed(' and now too long')
+  expect(onError).toHaveBeenCalledTimes(1)
+
+  const error = onError.mock.calls[0]?.[0]
+  expect(error).toBeInstanceOf(ParseError)
+  expect(error).toMatchObject({type: 'max-buffer-size-exceeded'})
+})
+
+test('maxBufferSize: triggers on data buffer overflow (no blank line)', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError, maxBufferSize: 32})
+
+  // Each `data:` line appends its value to the event's data buffer. Without a
+  // blank line, data accumulates unboundedly.
+  for (let i = 0; i < 50; i++) {
+    parser.feed(`data: chunk-${i}\n`)
+    if (onError.mock.calls.length > 0) break
+  }
+
+  expect(onError).toHaveBeenCalledTimes(1)
+  expect(onEvent).not.toHaveBeenCalled()
+
+  const error = onError.mock.calls[0]?.[0]
+  expect(error).toBeInstanceOf(ParseError)
+  expect(error).toMatchObject({type: 'max-buffer-size-exceeded'})
+})
+
+test('maxBufferSize: feed throws after overflow, until reset', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError, maxBufferSize: 8})
+
+  // The overflowing feed itself does not throw — it reports via onError.
+  parser.feed('this is too long for the buffer')
+  expect(onError).toHaveBeenCalledTimes(1)
+
+  // Subsequent feeds throw, signalling that the parser is unusable.
+  expect(() => parser.feed('data: hello\n\n')).toThrow(/max buffer size/)
+  expect(() => parser.feed('data: world\n\n')).toThrow(/max buffer size/)
+  expect(onEvent).not.toHaveBeenCalled()
+  expect(onError).toHaveBeenCalledTimes(1)
+
+  // After reset, the parser works again.
+  parser.reset()
+  parser.feed('data: hello\n\n')
+  expect(onEvent).toHaveBeenCalledTimes(1)
+  expect(onEvent).toHaveBeenLastCalledWith({id: undefined, event: undefined, data: 'hello'})
+})
+
+test('maxBufferSize: not triggered when events dispatch within the limit', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError, maxBufferSize: 64})
+
+  // Lots of small events, each well under the limit and dispatched immediately.
+  for (let i = 0; i < 100; i++) {
+    parser.feed(`data: ${i}\n\n`)
+  }
+
+  expect(onError).not.toHaveBeenCalled()
+  expect(onEvent).toHaveBeenCalledTimes(100)
+})
+
+test('maxBufferSize: undefined option means unbounded (default behavior)', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError})
+
+  parser.feed('x'.repeat(1_000_000))
+  expect(onError).not.toHaveBeenCalled()
+})
+
 test('passing a function to `createParser` will throw with helpful error', () => {
   expect(() => {
     // @ts-expect-error Should not allow a function, typing-wise
