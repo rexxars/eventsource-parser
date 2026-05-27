@@ -21,7 +21,7 @@ function noop(_arg: unknown) {
  * @param config - Parser configuration. Accepts callbacks (see {@link ParserCallbacks})
  *   and options like `maxBufferSize` (see {@link ParserConfig}).
  *
- * @returns A new EventSource parser, with `parse` and `reset` methods.
+ * @returns A new EventSource parser, with `feed` and `reset` methods.
  * @public
  */
 export function createParser(config: ParserConfig): EventSourceParser {

@@ -60,7 +60,7 @@ export interface StreamOptions {
  * const eventStream =
  *  response.body
  *   .pipeThrough(new TextDecoderStream())
- *   .pipeThrough(new EventSourceParserStream({terminateOnError: true}))
+ *   .pipeThrough(new EventSourceParserStream({onError: 'terminate'}))
  * ```
  *
  * @public

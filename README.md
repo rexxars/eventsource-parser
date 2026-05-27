@@ -141,7 +141,7 @@ const eventStream = response.body
   .pipeThrough(new EventSourceParserStream())
 ```
 
-The stream constructor accepts the same options as `createParser` (e.g. `maxBufferSize`, `onComment`, `onRetry`) plus an `onError` that can be set to `'terminate'` to error the stream on parse errors:
+The stream constructor accepts a subset of the `createParser` options (`onComment`, `onRetry`, `maxBufferSize`) plus an `onError` that can either be a function or set to `'terminate'` to error the stream on parse errors. Events are delivered through the stream itself rather than via an `onEvent` callback:
 
 ```ts
 new EventSourceParserStream({
