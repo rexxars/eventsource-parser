@@ -2,7 +2,7 @@
  * The type of error that occurred.
  * @public
  */
-export type ErrorType = 'invalid-retry' | 'unknown-field'
+export type ErrorType = 'invalid-retry' | 'unknown-field' | 'max-buffer-size-exceeded'
 
 /**
  * Error thrown when encountering an issue during parsing.

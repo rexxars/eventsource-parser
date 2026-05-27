@@ -31,6 +31,17 @@ export interface StreamOptions {
    * @param comment - The comment encountered in the stream.
    */
   onComment?: ((comment: string) => void) | undefined
+
+  /**
+   * Maximum number of characters the parser is allowed to buffer across calls to `feed()`.
+   * See {@link ParserConfig.maxBufferSize} for details.
+   *
+   * When the limit is exceeded, the stream is always errored (regardless of the `onError`
+   * setting) since the underlying parser is unrecoverable without a `reset()`.
+   *
+   * @defaultValue `undefined` (unbounded)
+   */
+  maxBufferSize?: number | undefined
 }
 
 /**
@@ -49,13 +60,13 @@ export interface StreamOptions {
  * const eventStream =
  *  response.body
  *   .pipeThrough(new TextDecoderStream())
- *   .pipeThrough(new EventSourceParserStream({terminateOnError: true}))
+ *   .pipeThrough(new EventSourceParserStream({onError: 'terminate'}))
  * ```
  *
  * @public
  */
 export class EventSourceParserStream extends TransformStream<string, EventSourceMessage> {
-  constructor({onError, onRetry, onComment}: StreamOptions = {}) {
+  constructor({onError, onRetry, onComment, maxBufferSize}: StreamOptions = {}) {
     let parser!: EventSourceParser
 
     super({
@@ -65,16 +76,24 @@ export class EventSourceParserStream extends TransformStream<string, EventSource
             controller.enqueue(event)
           },
           onError(error) {
-            if (onError === 'terminate') {
-              controller.error(error)
-            } else if (typeof onError === 'function') {
+            if (typeof onError === 'function') {
               onError(error)
+            }
+
+            // `max-buffer-size-exceeded` is fatal — the parser is unusable until
+            // `reset()`, which the stream wrapper has no way to call. Always
+            // terminate the stream in that case so consumers see the meaningful
+            // `ParseError` instead of an opaque "cannot feed terminated parser"
+            // throw from the next chunk.
+            if (onError === 'terminate' || error.type === 'max-buffer-size-exceeded') {
+              controller.error(error)
             }
 
             // Ignore by default
           },
           onRetry,
           onComment,
+          maxBufferSize,
         })
       },
       transform(chunk) {

@@ -109,6 +109,28 @@ const parser = createParser({
 > [!NOTE]
 > Leading whitespace is not stripped from comments, eg `: comment` will give ` comment` as the comment value, not `comment` (note the leading space).
 
+### Limiting buffered memory (`maxBufferSize`)
+
+By default the parser buffers data indefinitely until a server completes an event. A server (or proxy) that never terminates a line, or that keeps appending `data:` lines without ever sending a blank line to dispatch the event, can therefore grow the parser's buffers without bound.
+
+Pass a `maxBufferSize` (in characters) to `createParser` to cap this. If the combined size of the pending line buffer and the in-progress event's data buffer exceeds the limit, the parser emits a `ParseError` with `type: 'max-buffer-size-exceeded'` and becomes terminated: subsequent calls to `feed()` will throw until `reset()` is called.
+
+```ts
+const parser = createParser({
+  maxBufferSize: 1024 * 1024, // 1 MB
+  onEvent(event) {
+    // …
+  },
+  onError(error) {
+    if (error.type === 'max-buffer-size-exceeded') {
+      // Stream peer is misbehaving — typically you'd close the connection.
+    }
+  },
+})
+```
+
+The same option is available on the [stream variant](#stream-usage); the stream is always errored when this limit is exceeded, regardless of the `onError` setting (since the underlying parser is unrecoverable without a `reset()`).
+
 ## Stream usage
 
 ```ts
@@ -117,6 +139,15 @@ import {EventSourceParserStream} from 'eventsource-parser/stream'
 const eventStream = response.body
   .pipeThrough(new TextDecoderStream())
   .pipeThrough(new EventSourceParserStream())
+```
+
+The stream constructor accepts a subset of the `createParser` options (`onComment`, `onRetry`, `maxBufferSize`) plus an `onError` that can either be a function or set to `'terminate'` to error the stream on parse errors. Events are delivered through the stream itself rather than via an `onEvent` callback:
+
+```ts
+new EventSourceParserStream({
+  maxBufferSize: 1024 * 1024,
+  onError: 'terminate',
+})
 ```
 
 Note that the TransformStream is exposed under a separate export (`eventsource-parser/stream`), in order to maximize compatibility with environments that do not have the `TransformStream` constructor available.

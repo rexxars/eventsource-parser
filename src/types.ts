@@ -95,3 +95,28 @@ export interface ParserCallbacks {
    */
   onError?: ((error: ParseError) => void) | undefined
 }
+
+/**
+ * Configuration accepted by {@link createParser}. Extends {@link ParserCallbacks} with
+ * additional options that control parser behavior.
+ *
+ * @public
+ */
+export interface ParserConfig extends ParserCallbacks {
+  /**
+   * Maximum number of characters the parser is allowed to buffer across calls to `feed()`.
+   *
+   * Two unbounded surfaces exist in a streaming SSE parser:
+   * - A partial line that has not yet been terminated by `\n`, `\r`, or `\r\n`.
+   * - A multi-line event whose terminating blank line has not yet arrived (each `data:`
+   *   field gets appended to the buffered event).
+   *
+   * When the combined size of these buffers exceeds `maxBufferSize`, the parser emits a
+   * `ParseError` with `type: 'max-buffer-size-exceeded'` to `onError` and becomes
+   * terminated — subsequent calls to `feed()` will throw until `reset()` is called.
+   * This protects against unbounded memory growth from malformed or malicious streams.
+   *
+   * @defaultValue `undefined` (unbounded)
+   */
+  maxBufferSize?: number | undefined
+}
