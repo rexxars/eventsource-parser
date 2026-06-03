@@ -34,7 +34,6 @@ export interface StreamOptions {
 
   /**
    * Maximum number of characters the parser is allowed to buffer across calls to `feed()`.
-   * See {@link ParserConfig.maxBufferSize} for details.
    *
    * When the limit is exceeded, the stream is always errored (regardless of the `onError`
    * setting) since the underlying parser is unrecoverable without a `reset()`.

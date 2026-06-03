@@ -9,6 +9,7 @@ import type {EventSourceParser, ParserConfig} from './types.ts'
 const LF = 10
 const CR = 13
 const SPACE = 32
+const MAX_FIELD_PREFIX_LENGTH = 6
 
 // oxlint-disable-next-line no-unused-vars
 function noop(_arg: unknown) {
@@ -54,6 +55,14 @@ export function createParser(config: ParserConfig): EventSourceParser {
   // Set after a `maxBufferSize` overflow. Once tripped, `feed()` throws until
   // `reset()` is called — see the comment on `maxBufferSize` in `ParserConfig`.
   let terminated = false
+  let skippingLine = false
+
+  // Set when a discarded line was terminated by a trailing `\r` at the very end of a
+  // chunk. That `\r` is ambiguous: it may be a bare-CR terminator or the first half of
+  // a `\r\n` whose `\n` lands in the next chunk. We stop skipping but remember to
+  // swallow a single leading `\n` from the next chunk so the pair is treated as one
+  // terminator rather than a blank line (which would dispatch an event prematurely).
+  let skipNextLineFeed = false
 
   /**
    * Feeds a chunk of the SSE stream to the parser. Any trailing bytes that do
@@ -61,8 +70,10 @@ export function createParser(config: ParserConfig): EventSourceParser {
    * so callers can pass arbitrary slices of the stream without worrying about
    * line boundaries.
    *
-   * Per the SSE spec, a UTF-8 BOM (0xEF 0xBB 0xBF) at the start of the very
-   * first chunk is stripped before parsing.
+   * Per the SSE spec, one leading UTF-8 BOM at the start of the very first chunk
+   * is stripped before parsing. This handles both the raw 3-byte form (0xEF 0xBB
+   * 0xBF) and a single decoded U+FEFF, so a leading BOM is ignored regardless of
+   * how the caller decoded the bytes.
    *
    * @see https://html.spec.whatwg.org/multipage/server-sent-events.html#parsing-an-event-stream
    */
@@ -75,9 +86,16 @@ export function createParser(config: ParserConfig): EventSourceParser {
 
     if (isFirstChunk) {
       isFirstChunk = false
-      // Match and strip UTF-8 BOM from the start of the stream, if present.
-      // (Per the spec, this is only valid at the very start of the stream)
-      if (
+      // Strip one leading UTF-8 BOM from the start of the stream, if present.
+      // (Per the spec, this is only valid at the very start of the stream.)
+      // Two representations can reach us depending on how the caller decoded the
+      // bytes: a single decoded U+FEFF (e.g. a `TextDecoder` created with
+      // `ignoreBOM`) or the raw 3-byte sequence (0xEF 0xBB 0xBF, e.g. a latin1 or
+      // passthrough decode). Both are stripped so a leading BOM is ignored
+      // regardless of decode path.
+      if (chunk.charCodeAt(0) === 0xfeff) {
+        chunk = chunk.slice(1)
+      } else if (
         chunk.charCodeAt(0) === 0xef &&
         chunk.charCodeAt(1) === 0xbb &&
         chunk.charCodeAt(2) === 0xbf
@@ -86,15 +104,52 @@ export function createParser(config: ParserConfig): EventSourceParser {
       }
     }
 
+    // A discarded line ended with a trailing `\r` at the previous chunk boundary.
+    // Swallow a single leading `\n` so a split `\r\n` terminator is consumed as one
+    // unit; otherwise the `\r` was a complete terminator and this chunk parses as-is.
+    if (skipNextLineFeed && chunk.length > 0) {
+      skipNextLineFeed = false
+      if (chunk.charCodeAt(0) === LF) {
+        chunk = chunk.slice(1)
+        if (!chunk) {
+          return
+        }
+      }
+    }
+
+    if (skippingLine) {
+      const crIndex = chunk.indexOf('\r')
+      const lfIndex = chunk.indexOf('\n')
+      const lineEnd =
+        crIndex === -1 ? lfIndex : lfIndex === -1 ? crIndex : crIndex < lfIndex ? crIndex : lfIndex
+
+      if (lineEnd === -1) {
+        return
+      }
+
+      // Trailing `\r` at the very end of the chunk: defer the CRLF/CR decision to the
+      // next chunk (see `skipNextLineFeed`) rather than greedily consuming just the `\r`.
+      if (lineEnd === chunk.length - 1 && chunk.charCodeAt(lineEnd) === CR) {
+        skippingLine = false
+        skipNextLineFeed = true
+        return
+      }
+
+      skippingLine = false
+      chunk = chunk.slice(
+        lineEnd +
+          (chunk.charCodeAt(lineEnd) === CR && chunk.charCodeAt(lineEnd + 1) === LF ? 2 : 1),
+      )
+      if (!chunk) {
+        return
+      }
+    }
+
     // Hot path: no buffered prefix from a prior partial line. Hand the chunk
     // straight to `processLines`, exactly like the original implementation.
     // Zero new work in the common case (every chunk ends with `\n\n`).
-    if (pendingFragments.length === 0) {
-      const trailing = processLines(chunk)
-      if (trailing !== '') {
-        pendingFragments.push(trailing)
-        pendingFragmentsLength = trailing.length
-      }
+    if (!pendingFragments.length) {
+      storeTrailing(processLines(chunk))
       checkBufferSize()
       return
     }
@@ -103,6 +158,17 @@ export function createParser(config: ParserConfig): EventSourceParser {
     // to the buffer without concatenating — that's the O(N²) trap we're
     // avoiding (large single `data:` payload split across many tiny chunks).
     if (chunk.indexOf('\n') === -1 && chunk.indexOf('\r') === -1) {
+      if (pendingFragmentsLength < MAX_FIELD_PREFIX_LENGTH) {
+        const head =
+          pendingFragments.join('') +
+          chunk.slice(0, MAX_FIELD_PREFIX_LENGTH - pendingFragmentsLength)
+        if (!shouldBufferTrailing(head)) {
+          pendingFragments.length = 0
+          pendingFragmentsLength = 0
+          skippingLine = true
+          return
+        }
+      }
       pendingFragments.push(chunk)
       pendingFragmentsLength += chunk.length
       checkBufferSize()
@@ -115,12 +181,31 @@ export function createParser(config: ParserConfig): EventSourceParser {
     const input = pendingFragments.join('')
     pendingFragments.length = 0
     pendingFragmentsLength = 0
-    const trailing = processLines(input)
-    if (trailing !== '') {
+    storeTrailing(processLines(input))
+    checkBufferSize()
+  }
+
+  function storeTrailing(trailing: string) {
+    if (!trailing) return
+    if (shouldBufferTrailing(trailing)) {
       pendingFragments.push(trailing)
       pendingFragmentsLength = trailing.length
+      return
     }
-    checkBufferSize()
+
+    skippingLine = true
+  }
+
+  function shouldBufferTrailing(trailing: string) {
+    const firstCharCode = trailing.charCodeAt(0)
+    return (
+      firstCharCode === CR ||
+      (firstCharCode === 58 && !!onComment) ||
+      (firstCharCode === 100 && isPotentialField(trailing, 'data')) ||
+      (firstCharCode === 101 && isPotentialField(trailing, 'event')) ||
+      (firstCharCode === 105 && isPotentialField(trailing, 'id')) ||
+      (firstCharCode === 114 && isPotentialField(trailing, 'retry'))
+    )
   }
 
   function checkBufferSize() {
@@ -134,6 +219,8 @@ export function createParser(config: ParserConfig): EventSourceParser {
     data = ''
     dataLines = 0
     eventType = undefined
+    skippingLine = false
+    skipNextLineFeed = false
     onError(
       new ParseError(`Buffered data exceeded max buffer size of ${maxBufferSize} characters`, {
         type: 'max-buffer-size-exceeded',
@@ -394,6 +481,8 @@ export function createParser(config: ParserConfig): EventSourceParser {
     pendingFragments.length = 0
     pendingFragmentsLength = 0
     terminated = false
+    skippingLine = false
+    skipNextLineFeed = false
   }
 
   return {feed, reset}
@@ -436,4 +525,16 @@ function isEventPrefix(chunk: string, i: number, firstCharCode: number): boolean
     chunk.charCodeAt(i + 4) === 116 &&
     chunk.charCodeAt(i + 5) === 58
   )
+}
+
+function isPotentialField(line: string, field: string): boolean {
+  let i = 1
+  while (i < line.length && i < field.length) {
+    if (line.charCodeAt(i) !== field.charCodeAt(i)) {
+      return false
+    }
+    i++
+  }
+
+  return line.length <= field.length || line.charCodeAt(field.length) === 58
 }

@@ -131,10 +131,14 @@ test('stream of leading bom', async () => {
   mock.expectNextMessage({event: 'done'})
 })
 
-test('stream containing (invalid?) byte-order mark (multiple places)', async () => {
+test('stream containing decoded U+FEFF byte-order marks (multiple places)', async () => {
   const mock = getParseResultMock()
   const parser = createParser({onEvent: mock.onParse})
   await getInvalidBomFixtureStream(parser.feed)
+  // The leading U+FEFF on the first chunk is stripped (one leading BOM, per spec),
+  // so `bomful 1` parses - mirroring the raw 3-byte multi-BOM stream below. The
+  // U+FEFF prefixing `bomful 2` is mid-stream, so that line is ignored.
+  mock.expectNextMessage({data: 'bomful 1'})
   mock.expectNextMessage({data: 'bomless 3'})
   mock.expectNextMessage({event: 'done'})
 })
@@ -146,6 +150,37 @@ test('stream containing byte-order mark (multiple places)', async () => {
   mock.expectNextMessage({data: 'bomful 1'})
   mock.expectNextMessage({data: 'bomless 3'})
   mock.expectNextMessage({event: 'done'})
+})
+
+test('UTF-8 BOM is stripped when bytes are decoded with a default `TextDecoder`', () => {
+  // The parser strips the raw 3-byte BOM (0xEF 0xBB 0xBF), but the spec-compliant
+  // pipeline is to decode bytes to a string first. `new TextDecoder()` strips a leading
+  // BOM by default, so the parser never even sees it - the event parses cleanly.
+  const mock = getParseResultMock()
+  const parser = createParser({onEvent: mock.onParse})
+
+  const body = new TextEncoder().encode('data: hello\n\n')
+  const withBom = new Uint8Array([0xef, 0xbb, 0xbf, ...body])
+  parser.feed(new TextDecoder().decode(withBom))
+
+  mock.expectNumberOfMessagesToBe(1)
+  mock.expectNextMessage({data: 'hello'})
+})
+
+test('a decoded U+FEFF (from an `ignoreBOM` decoder) is stripped like the raw 3-byte BOM', () => {
+  // With `{ignoreBOM: true}`, the decoder passes through a single U+FEFF character rather
+  // than stripping it. The parser strips a leading U+FEFF too (not just the raw 3-byte
+  // form), so a leading BOM is ignored regardless of decode path and the event parses
+  // cleanly - including the data line the BOM was attached to.
+  const mock = getParseResultMock()
+  const parser = createParser({onEvent: mock.onParse})
+
+  const body = new TextEncoder().encode('data: first\ndata: second\n\n')
+  const withBom = new Uint8Array([0xef, 0xbb, 0xbf, ...body])
+  parser.feed(new TextDecoder('utf-8', {ignoreBOM: true}).decode(withBom))
+
+  mock.expectNumberOfMessagesToBe(1)
+  mock.expectNextMessage({data: 'first\nsecond'})
 })
 
 test('stream using carriage returns', async () => {
@@ -422,7 +457,7 @@ test('skips onError when the stream is invalid but not newline-terminated (throu
   expect(onError).not.toHaveBeenCalled()
 })
 
-test('calls onError when the stream is invalid but not newline-terminated (through `reset() with `consume: true`)', async () => {
+test('skips onError when an invalid line was discarded before reset({consume: true})', async () => {
   const onEvent = vi.fn()
   const onError = vi.fn()
   const parser = createParser({onEvent, onError})
@@ -435,16 +470,7 @@ test('calls onError when the stream is invalid but not newline-terminated (throu
   parser.reset({consume: true})
 
   expect(onEvent).not.toHaveBeenCalled()
-  expect(onError).toHaveBeenCalled()
-
-  const error = onError.mock.calls[0]?.[0]
-  expect(error).toBeInstanceOf(ParseError)
-  expect(error).toMatchObject({
-    type: 'unknown-field',
-    field: '{"error"',
-    value: `"Internal Server Error","message":"The server could not process your request"}`,
-    line: `{"error":"Internal Server Error","message":"The server could not process your request"}`,
-  })
+  expect(onError).not.toHaveBeenCalled()
 })
 
 test('calls onError when the stream is invalid (through newline)', async () => {
@@ -490,13 +516,54 @@ test('calls onError when the stream is invalid (no field separator)', async () =
   })
 })
 
-test('maxBufferSize: triggers on pending fragment overflow (no terminator)', () => {
+test('maxBufferSize: discards unterminated unknown fields without buffering', () => {
   const onEvent = vi.fn()
   const onError = vi.fn()
   const parser = createParser({onEvent, onError, maxBufferSize: 16})
 
+  parser.feed('unknown-field')
+  parser.feed(': this content is ignored even without a terminator')
+  parser.feed('\ndata: ok\n\n')
+
+  expect(onError).not.toHaveBeenCalled()
+  expect(onEvent).toHaveBeenCalledTimes(1)
+  expect(onEvent).toHaveBeenLastCalledWith({id: undefined, event: undefined, data: 'ok'})
+})
+
+test('maxBufferSize: discards invalid lines as soon as their field name cannot become valid', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError, maxBufferSize: 16})
+
+  parser.feed('datax')
+  parser.feed(': this started like data, but is not a valid field')
+  parser.feed('\ndata: ok\n\n')
+
+  expect(onError).not.toHaveBeenCalled()
+  expect(onEvent).toHaveBeenCalledTimes(1)
+  expect(onEvent).toHaveBeenLastCalledWith({id: undefined, event: undefined, data: 'ok'})
+})
+
+test('maxBufferSize: preserves split valid fields while discarding invalid lines', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError, maxBufferSize: 16})
+
+  parser.feed('da')
+  parser.feed('ta\n\n')
+
+  expect(onError).not.toHaveBeenCalled()
+  expect(onEvent).toHaveBeenCalledTimes(1)
+  expect(onEvent).toHaveBeenLastCalledWith({id: undefined, event: undefined, data: ''})
+})
+
+test('maxBufferSize: triggers on pending fragment overflow (no terminator)', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError, maxBufferSize: 24})
+
   // Single feed under the limit — fine.
-  parser.feed('short start')
+  parser.feed('data: short')
   expect(onError).not.toHaveBeenCalled()
 
   // Pushes the accumulated fragments past the limit.
@@ -506,6 +573,82 @@ test('maxBufferSize: triggers on pending fragment overflow (no terminator)', () 
   const error = onError.mock.calls[0]?.[0]
   expect(error).toBeInstanceOf(ParseError)
   expect(error).toMatchObject({type: 'max-buffer-size-exceeded'})
+})
+
+test('maxBufferSize: discards unterminated comments when no onComment callback exists', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError, maxBufferSize: 16})
+
+  parser.feed(':'.repeat(64))
+  parser.feed('this content is ignored even without a terminator')
+  parser.feed('\ndata: ok\n\n')
+
+  expect(onError).not.toHaveBeenCalled()
+  expect(onEvent).toHaveBeenCalledTimes(1)
+  expect(onEvent).toHaveBeenLastCalledWith({id: undefined, event: undefined, data: 'ok'})
+})
+
+test('discarded unterminated comments consume crlf as one line terminator', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError, maxBufferSize: 16})
+
+  parser.feed('data: one\n:')
+  parser.feed('ignored\r\ndata: two\n\n')
+
+  expect(onError).not.toHaveBeenCalled()
+  expect(onEvent).toHaveBeenCalledTimes(1)
+  expect(onEvent).toHaveBeenLastCalledWith({id: undefined, event: undefined, data: 'one\ntwo'})
+})
+
+test('discarded lines consume a crlf split across chunks as one line terminator', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError})
+
+  // The discarded line's `\r\n` terminator is split across chunks: the `\r` ends one
+  // chunk and the `\n` begins the next. The `\n` must be consumed as the second half
+  // of the terminator, not treated as a blank line (which would dispatch early).
+  parser.feed('data: one\n:')
+  parser.feed('ignored\r')
+  parser.feed('\ndata: two\n\n')
+
+  expect(onError).not.toHaveBeenCalled()
+  expect(onEvent).toHaveBeenCalledTimes(1)
+  expect(onEvent).toHaveBeenLastCalledWith({id: undefined, event: undefined, data: 'one\ntwo'})
+})
+
+test('discarded lines terminated by a bare cr resume parsing on the next chunk', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError})
+
+  // The discarded line ends with a bare `\r` at the chunk boundary and the next chunk
+  // does NOT begin with `\n`, so the `\r` was a complete terminator and the following
+  // chunk must be parsed as a new line rather than swallowed.
+  parser.feed('data: one\n:')
+  parser.feed('ignored\r')
+  parser.feed('data: two\n\n')
+
+  expect(onError).not.toHaveBeenCalled()
+  expect(onEvent).toHaveBeenCalledTimes(1)
+  expect(onEvent).toHaveBeenLastCalledWith({id: undefined, event: undefined, data: 'one\ntwo'})
+})
+
+test('maxBufferSize: preserves unterminated comments when onComment callback exists', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const onComment = vi.fn()
+  const parser = createParser({onEvent, onError, onComment, maxBufferSize: 64})
+
+  parser.feed(':')
+  parser.feed('preserved')
+  parser.feed('\n')
+
+  expect(onError).not.toHaveBeenCalled()
+  expect(onComment).toHaveBeenCalledTimes(1)
+  expect(onComment).toHaveBeenLastCalledWith('preserved')
 })
 
 test('maxBufferSize: triggers on data buffer overflow (no blank line)', () => {
@@ -534,7 +677,7 @@ test('maxBufferSize: feed throws after overflow, until reset', () => {
   const parser = createParser({onEvent, onError, maxBufferSize: 8})
 
   // The overflowing feed itself does not throw — it reports via onError.
-  parser.feed('this is too long for the buffer')
+  parser.feed('data: this is too long for the buffer')
   expect(onError).toHaveBeenCalledTimes(1)
 
   // Subsequent feeds throw, signalling that the parser is unusable.
@@ -569,7 +712,7 @@ test('maxBufferSize: undefined option means unbounded (default behavior)', () =>
   const onError = vi.fn()
   const parser = createParser({onEvent, onError})
 
-  parser.feed('x'.repeat(1_000_000))
+  parser.feed(`data: ${'x'.repeat(1_000_000)}`)
   expect(onError).not.toHaveBeenCalled()
 })
 

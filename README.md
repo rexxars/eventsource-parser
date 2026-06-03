@@ -72,7 +72,7 @@ import {type ParseError} from 'eventsource-parser'
 const parser = createParser({
   onError(error: ParseError) {
     console.error('Error parsing event:', error)
-    if (error.type === 'invalid-field') {
+    if (error.type === 'unknown-field') {
       console.error('Field name:', error.field)
       console.error('Field value:', error.value)
       console.error('Line:', error.line)
@@ -86,10 +86,10 @@ const parser = createParser({
 })
 ```
 
-Note that `invalid-field` errors will usually be called for any invalid data - not only data shaped as `field: value`. This is because the EventSource specification says to treat anything prior to a `:` as the field name. Use the `error.line` property to get the full line that caused the error.
+Note that `unknown-field` errors are emitted for completed invalid lines, not only data shaped as `field: value`. This is because the EventSource specification says to treat anything prior to a `:` as the field name. Incomplete lines that cannot become a valid SSE field may be discarded before completion to avoid unbounded buffering, in which case `onError` is not called and no `line`, `field`, or `value` is retained.
 
 > [!NOTE]
-> When encountering the end of a stream, calling `.reset({consume: true})` on the parser to flush any remaining data and reset the parser state. This will trigger the `onError` callback if the pending data is not a valid event.
+> When encountering the end of a stream, calling `.reset({consume: true})` on the parser to flush any remaining data and reset the parser state. This will trigger the `onError` callback if the pending data has not already been discarded as an invalid line.
 
 ### Comments
 
@@ -111,7 +111,7 @@ const parser = createParser({
 
 ### Limiting buffered memory (`maxBufferSize`)
 
-By default the parser buffers data indefinitely until a server completes an event. A server (or proxy) that never terminates a line, or that keeps appending `data:` lines without ever sending a blank line to dispatch the event, can therefore grow the parser's buffers without bound.
+By default the parser buffers valid partial lines and event data until a server completes an event. A server (or proxy) that starts a valid field and never terminates the line, or that keeps appending `data:` lines without ever sending a blank line to dispatch the event, can therefore grow the parser's buffers without bound. Lines that cannot become valid SSE fields are discarded without buffering.
 
 Pass a `maxBufferSize` (in characters) to `createParser` to cap this. If the combined size of the pending line buffer and the in-progress event's data buffer exceeds the limit, the parser emits a `ParseError` with `type: 'max-buffer-size-exceeded'` and becomes terminated: subsequent calls to `feed()` will throw until `reset()` is called.
 

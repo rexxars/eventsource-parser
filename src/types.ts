@@ -91,6 +91,9 @@ export interface ParserCallbacks {
    * that occur during parsing, and can be used to handle them in a custom way. Most clients
    * tend to silently ignore any errors and instead retry, but it can be helpful to log/debug.
    *
+   * Incomplete lines that cannot become valid SSE fields may be discarded before completion
+   * to avoid unbounded buffering. Those discarded lines do not trigger `onError`.
+   *
    * @param error - The error that occurred during parsing
    */
   onError?: ((error: ParseError) => void) | undefined
@@ -106,10 +109,12 @@ export interface ParserConfig extends ParserCallbacks {
   /**
    * Maximum number of characters the parser is allowed to buffer across calls to `feed()`.
    *
-   * Two unbounded surfaces exist in a streaming SSE parser:
-   * - A partial line that has not yet been terminated by `\n`, `\r`, or `\r\n`.
+   * Two buffered surfaces exist in a streaming SSE parser:
+   * - A valid partial line that has not yet been terminated by `\n`, `\r`, or `\r\n`.
    * - A multi-line event whose terminating blank line has not yet arrived (each `data:`
    *   field gets appended to the buffered event).
+   *
+   * Lines that cannot become valid SSE fields are discarded without buffering.
    *
    * When the combined size of these buffers exceeds `maxBufferSize`, the parser emits a
    * `ParseError` with `type: 'max-buffer-size-exceeded'` to `onError` and becomes
