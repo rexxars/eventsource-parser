@@ -6,7 +6,7 @@ A streaming parser for [server-sent events/eventsource](https://developer.mozill
 
 If you are looking for a modern client implementation, see [eventsource-client](https://github.com/rexxars/eventsource-client).
 
-You create an instance of the parser, and _feed_ it chunks of data - partial or complete, and the parse emits parsed messages once it receives a complete message. A [TransformStream variant](#stream-usage) is also available for environments that support it (modern browsers, Node 22.12 and higher).
+You create an instance of the parser, and _feed_ it chunks of data - partial or complete, and the parser emits parsed messages once it receives a complete message. A [TransformStream variant](#stream-usage) is also available for environments that support it (modern browsers, Node 22.12 and higher).
 
 Other modules in the EventSource family:
 
