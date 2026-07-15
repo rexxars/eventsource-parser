@@ -57,11 +57,12 @@ export function createParser(config: ParserConfig): EventSourceParser {
   let terminated = false
   let skippingLine = false
 
-  // Set when a discarded line was terminated by a trailing `\r` at the very end of a
-  // chunk. That `\r` is ambiguous: it may be a bare-CR terminator or the first half of
-  // a `\r\n` whose `\n` lands in the next chunk. We stop skipping but remember to
-  // swallow a single leading `\n` from the next chunk so the pair is treated as one
-  // terminator rather than a blank line (which would dispatch an event prematurely).
+  // Set when a line (parsed or discarded) was terminated by a trailing `\r` at the very
+  // end of a chunk. That `\r` is ambiguous: it may be a bare-CR terminator or the first
+  // half of a `\r\n` whose `\n` lands in the next chunk. The line itself is complete
+  // either way, but we must remember to swallow a single leading `\n` from the next
+  // chunk so the pair is treated as one terminator rather than a blank line (which
+  // would dispatch an event prematurely).
   let skipNextLineFeed = false
 
   /**
@@ -187,6 +188,18 @@ export function createParser(config: ParserConfig): EventSourceParser {
 
   function storeTrailing(trailing: string) {
     if (!trailing) return
+
+    // A trailing that ends with `\r` is not a partial line: the `\r` terminates it,
+    // and only the CRLF-vs-CR ambiguity remains (the matching `\n` may start the next
+    // chunk). Parse the completed line now — buffering it could grow unbounded through
+    // the no-terminator append path, and discarding it would eat the terminator and
+    // make skip mode swallow the next line.
+    if (trailing.charCodeAt(trailing.length - 1) === CR) {
+      parseLine(trailing, 0, trailing.length - 1)
+      skipNextLineFeed = true
+      return
+    }
+
     if (shouldBufferTrailing(trailing)) {
       pendingFragments.push(trailing)
       pendingFragmentsLength = trailing.length
@@ -199,7 +212,6 @@ export function createParser(config: ParserConfig): EventSourceParser {
   function shouldBufferTrailing(trailing: string) {
     const firstCharCode = trailing.charCodeAt(0)
     return (
-      firstCharCode === CR ||
       (firstCharCode === 58 && !!onComment) ||
       (firstCharCode === 100 && isPotentialField(trailing, 'data')) ||
       (firstCharCode === 101 && isPotentialField(trailing, 'event')) ||

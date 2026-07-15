@@ -636,6 +636,90 @@ test('discarded lines terminated by a bare cr resume parsing on the next chunk',
   expect(onEvent).toHaveBeenLastCalledWith({id: undefined, event: undefined, data: 'one\ntwo'})
 })
 
+test('discarded lines arriving with their own bare cr terminator do not swallow the next line', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError})
+
+  // The discarded line arrives together with its bare `\r` terminator as the last
+  // character of the chunk. The line is already complete, so the next chunk must be
+  // parsed as a new line rather than skipped in search of another terminator.
+  parser.feed('data: one\n:ignored\r')
+  parser.feed('data: two\n\n')
+
+  expect(onError).not.toHaveBeenCalled()
+  expect(onEvent).toHaveBeenCalledTimes(1)
+  expect(onEvent).toHaveBeenLastCalledWith({id: undefined, event: undefined, data: 'one\ntwo'})
+})
+
+test('discarded lines arriving with a trailing cr consume a following lf as one terminator', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError})
+
+  // Same as above, but the `\r` turns out to be the first half of a `\r\n` split across
+  // chunks. The leading `\n` of the next chunk must be consumed as the second half of
+  // the terminator, not treated as a blank line (which would dispatch early).
+  parser.feed('data: one\n:ignored\r')
+  parser.feed('\ndata: two\n\n')
+
+  expect(onError).not.toHaveBeenCalled()
+  expect(onEvent).toHaveBeenCalledTimes(1)
+  expect(onEvent).toHaveBeenLastCalledWith({id: undefined, event: undefined, data: 'one\ntwo'})
+})
+
+test('bare field lines terminated by a cr at a chunk boundary are processed, not discarded', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError})
+
+  // A line consisting of just `data` (no colon) is a valid field per spec: it appends
+  // an empty string to the data buffer. It only becomes distinguishable from an
+  // unknown field once the terminator arrives, which here is a `\r` ending the chunk.
+  parser.feed('data: one\ndata\r')
+  parser.feed('\ndata: two\n\n')
+
+  expect(onError).not.toHaveBeenCalled()
+  expect(onEvent).toHaveBeenCalledTimes(1)
+  expect(onEvent).toHaveBeenLastCalledWith({id: undefined, event: undefined, data: 'one\n\ntwo'})
+})
+
+test('unknown field lines completed by a cr at a chunk boundary still emit unknown-field errors', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError})
+
+  // The junk line is completed (terminated by `\r`) within the chunk, so the
+  // "completed invalid lines still report errors" contract applies - only lines
+  // discarded *before* completion skip `onError`.
+  parser.feed('garbage\r')
+  parser.feed('data: ok\n\n')
+
+  expect(onError).toHaveBeenCalledTimes(1)
+  const error = onError.mock.calls[0]?.[0]
+  expect(error).toBeInstanceOf(ParseError)
+  expect(error).toMatchObject({type: 'unknown-field', field: 'garbage', value: '', line: 'garbage'})
+
+  expect(onEvent).toHaveBeenCalledTimes(1)
+  expect(onEvent).toHaveBeenLastCalledWith({id: undefined, event: undefined, data: 'ok'})
+})
+
+test('a blank cr line ending a chunk dispatches the pending event exactly once', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError})
+
+  // Stream is `data: one\r\r\n`: a data line, then a blank line whose `\r\n` is split
+  // across chunks. Exactly one event must be dispatched.
+  parser.feed('data: one\r')
+  parser.feed('\r')
+  parser.feed('\n')
+
+  expect(onError).not.toHaveBeenCalled()
+  expect(onEvent).toHaveBeenCalledTimes(1)
+  expect(onEvent).toHaveBeenLastCalledWith({id: undefined, event: undefined, data: 'one'})
+})
+
 test('maxBufferSize: preserves unterminated comments when onComment callback exists', () => {
   const onEvent = vi.fn()
   const onError = vi.fn()
