@@ -105,42 +105,11 @@ export function createParser(config: ParserConfig): EventSourceParser {
       }
     }
 
-    // A discarded line ended with a trailing `\r` at the previous chunk boundary.
-    // Swallow a single leading `\n` so a split `\r\n` terminator is consumed as one
-    // unit; otherwise the `\r` was a complete terminator and this chunk parses as-is.
-    if (skipNextLineFeed && chunk.length > 0) {
-      skipNextLineFeed = false
-      if (chunk.charCodeAt(0) === LF) {
-        chunk = chunk.slice(1)
-        if (!chunk) {
-          return
-        }
-      }
-    }
-
-    if (skippingLine) {
-      const crIndex = chunk.indexOf('\r')
-      const lfIndex = chunk.indexOf('\n')
-      const lineEnd =
-        crIndex === -1 ? lfIndex : lfIndex === -1 ? crIndex : crIndex < lfIndex ? crIndex : lfIndex
-
-      if (lineEnd === -1) {
-        return
-      }
-
-      // Trailing `\r` at the very end of the chunk: defer the CRLF/CR decision to the
-      // next chunk (see `skipNextLineFeed`) rather than greedily consuming just the `\r`.
-      if (lineEnd === chunk.length - 1 && chunk.charCodeAt(lineEnd) === CR) {
-        skippingLine = false
-        skipNextLineFeed = true
-        return
-      }
-
-      skippingLine = false
-      chunk = chunk.slice(
-        lineEnd +
-          (chunk.charCodeAt(lineEnd) === CR && chunk.charCodeAt(lineEnd + 1) === LF ? 2 : 1),
-      )
+    // Rare resume states from a prior chunk boundary: a pending `\r\n` split or a
+    // line being discarded. Single combined check keeps the hot path to one branch;
+    // the actual handling lives out-of-line in `resumeAfterSkip`.
+    if (skippingLine || skipNextLineFeed) {
+      chunk = resumeAfterSkip(chunk)
       if (!chunk) {
         return
       }
@@ -150,7 +119,10 @@ export function createParser(config: ParserConfig): EventSourceParser {
     // straight to `processLines`, exactly like the original implementation.
     // Zero new work in the common case (every chunk ends with `\n\n`).
     if (!pendingFragments.length) {
-      storeTrailing(processLines(chunk))
+      const trailing = processLines(chunk)
+      if (trailing !== '') {
+        storeTrailing(trailing)
+      }
       checkBufferSize()
       return
     }
@@ -184,6 +156,45 @@ export function createParser(config: ParserConfig): EventSourceParser {
     pendingFragmentsLength = 0
     storeTrailing(processLines(input))
     checkBufferSize()
+  }
+
+  // Out-of-line handler for the rare post-boundary states. `skipNextLineFeed` means a
+  // line (parsed or discarded) ended with a trailing `\r` at the previous chunk boundary,
+  // so a single leading `\n` must be swallowed to consume a split `\r\n` as one terminator.
+  // `skippingLine` means we are discarding an invalid line until its terminator arrives.
+  // The two states are mutually exclusive. Returns the remaining chunk to parse ('' if
+  // this chunk was fully consumed).
+  function resumeAfterSkip(chunk: string): string {
+    if (chunk.length === 0) {
+      return chunk
+    }
+
+    if (skipNextLineFeed) {
+      skipNextLineFeed = false
+      return chunk.charCodeAt(0) === LF ? chunk.slice(1) : chunk
+    }
+
+    const crIndex = chunk.indexOf('\r')
+    const lfIndex = chunk.indexOf('\n')
+    const lineEnd =
+      crIndex === -1 ? lfIndex : lfIndex === -1 ? crIndex : crIndex < lfIndex ? crIndex : lfIndex
+
+    if (lineEnd === -1) {
+      return ''
+    }
+
+    // Trailing `\r` at the very end of the chunk: defer the CRLF/CR decision to the
+    // next chunk (see `skipNextLineFeed`) rather than greedily consuming just the `\r`.
+    if (lineEnd === chunk.length - 1 && chunk.charCodeAt(lineEnd) === CR) {
+      skippingLine = false
+      skipNextLineFeed = true
+      return ''
+    }
+
+    skippingLine = false
+    return chunk.slice(
+      lineEnd + (chunk.charCodeAt(lineEnd) === CR && chunk.charCodeAt(lineEnd + 1) === LF ? 2 : 1),
+    )
   }
 
   function storeTrailing(trailing: string) {
