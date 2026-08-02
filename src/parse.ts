@@ -291,7 +291,9 @@ export function createParser(config: ParserConfig): EventSourceParser {
     ) {
       // 'id:'.length === 3, 'id: '.length === 4
       const value = chunk.slice(chunk.charCodeAt(start + 3) === SPACE ? start + 4 : start + 3, end)
-      id = value.includes('\0') ? undefined : value
+      // If the field value does not contain U+0000 NULL, then set the `ID` buffer to
+      // the field value. Otherwise, ignore the field.
+      if (!value.includes('\0')) id = value
       return
     }
 
@@ -333,7 +335,7 @@ export function createParser(config: ParserConfig): EventSourceParser {
       case 'id':
         // If the field value does not contain U+0000 NULL, then set the `ID` buffer to
         // the field value. Otherwise, ignore the field.
-        id = value.includes('\0') ? undefined : value
+        if (!value.includes('\0')) id = value
         break
       case 'retry':
         // If the field value consists of only ASCII digits, then interpret the field value as an

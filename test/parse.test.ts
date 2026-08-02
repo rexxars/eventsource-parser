@@ -311,6 +311,20 @@ test('stream with partially incorrect retry fields', async () => {
   mock.expectNumberOfMessagesToBe(1)
 })
 
+test('stream with `id` field containing a NULL character', async () => {
+  const mock = getParseResultMock()
+  const parser = createParser(mock.callbacks)
+
+  // Spec says of the `id` field:
+  // > If the field value does not contain U+0000 NULL, then set the last event ID buffer
+  // > to the field value. Otherwise, ignore the field.
+  // Ignoring the field means the previously buffered `123` must survive.
+  parser.feed('id: 123\nid: bad\0id\ndata: hello\n\n')
+
+  mock.expectNumberOfMessagesToBe(1)
+  mock.expectNextMessage({id: '123', event: undefined, data: 'hello'})
+})
+
 test('stream with incorrect retry fields', async () => {
   const mock = getParseResultMock()
   const parser = createParser(mock.callbacks)
