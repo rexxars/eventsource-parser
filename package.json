@@ -20,9 +20,8 @@
   "files": [
     "dist",
     "!dist/stats.html",
-    "!dist/index.min.js",
-    "src",
-    "stream.js"
+    "!dist/*.min.js",
+    "src"
   ],
   "type": "module",
   "sideEffects": false,
@@ -51,17 +50,16 @@
     }
   },
   "scripts": {
-    "build": "pkg-utils build && pkg-utils --strict",
-    "clean": "rimraf dist coverage",
-    "check": "npm run clean && npm run format && npm run lint && npm run build && vitest run",
+    "build": "npm run clean && tsc --build tsconfig.build.json",
+    "clean": "tsc --build tsconfig.build.json --clean",
+    "check": "npm run format && npm run lint && npm run build && vitest run",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "bench": "node --expose-gc --experimental-strip-types --no-warnings=ExperimentalWarning bench/parse.bench.ts",
-    "bundle-size": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/bundle-size.ts",
+    "bench": "node --expose-gc bench/parse.bench.ts",
+    "bundle-size": "node scripts/bundle-size.ts",
     "knip": "knip",
     "lint": "oxlint && tsc --noEmit",
     "posttest": "npm run lint",
-    "prebuild": "npm run clean",
     "prepublishOnly": "npm run build",
     "release:publish": "changeset publish",
     "release:version": "changeset version && npm install --package-lock-only --ignore-scripts",
@@ -73,18 +71,15 @@
   "devDependencies": {
     "@changesets/changelog-github": "^0.7.0",
     "@changesets/cli": "^2.31.1",
-    "@sanity/pkg-utils": "^10.5.2",
-    "@sanity/tsconfig": "^2.1.0",
     "@types/node": "^22.12.0",
+    "esbuild": "^0.28.2",
     "eventsource-encoder": "^1.0.2",
     "knip": "^6.15.0",
     "mitata": "^1.0.34",
     "oxfmt": "^0.53.0",
     "oxlint": "^1.68.0",
-    "rimraf": "^6.1.3",
-    "rollup-plugin-visualizer": "^6.0.3",
     "terser": "^5.46.2",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.8"
   },
   "browserslist": [
