@@ -1,9 +1,4 @@
-<!-- markdownlint-disable --><!-- textlint-disable -->
-
 # 📓 Changelog
-
-All notable changes to this project will be documented in this file. See
-[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
 ## [3.1.1](https://github.com/rexxars/eventsource-parser/compare/v3.1.0...v3.1.1) (2026-08-10)
 
