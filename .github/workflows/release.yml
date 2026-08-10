@@ -43,6 +43,10 @@ jobs:
           version: npm run release:version
           publish: npm run release:publish
           createGithubReleases: true
+          # Conventional commit subjects, so the version pull request and the
+          # commit it squashes into main match every other commit in the history
+          title: 'chore: version packages'
+          commit: 'chore: version packages'
         env:
           # Used to open the version PR, create GitHub releases and resolve
           # contributors/PR links in the changelog
