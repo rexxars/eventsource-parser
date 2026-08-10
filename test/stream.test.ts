@@ -44,7 +44,7 @@ test('can use `EventSourceParserStream`', async () => {
 })
 
 test('maxBufferSize: terminates the stream when onError is `terminate`', async () => {
-  const response = new Response('x'.repeat(1024))
+  const response = new Response(`data: ${'x'.repeat(1024)}`)
   if (!response.body) {
     throw new Error('No body')
   }
@@ -59,7 +59,7 @@ test('maxBufferSize: terminates the stream when onError is `terminate`', async (
 
 test('maxBufferSize: invokes custom onError function and errors the stream', async () => {
   const onError = vi.fn()
-  const response = new Response('x'.repeat(1024))
+  const response = new Response(`data: ${'x'.repeat(1024)}`)
   if (!response.body) {
     throw new Error('No body')
   }

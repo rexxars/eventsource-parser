@@ -8,6 +8,7 @@ import {
   createHeartbeatFixture,
   createIdentifiedEventFixture,
   createIdleStreamFixture,
+  createInvalidLineDripFixture,
   createMultibyteFixture,
   createNamedEventFixture,
   createSmallChunkFixture,
@@ -25,6 +26,7 @@ const fixtures: Array<[string, FixtureFactory]> = [
   ['multibyte', () => createMultibyteFixture({seed: SEED, count: 20})],
   ['heartbeat', () => createHeartbeatFixture({seed: SEED, count: 12})],
   ['idle-stream', () => createIdleStreamFixture({count: 64})],
+  ['invalid-line-drip', () => createInvalidLineDripFixture({count: 64})],
   ['small-chunk', () => createSmallChunkFixture({seed: SEED, count: 16, avgChunkSize: 6})],
   ['edge-cases', () => createEdgeCasesFixture()],
 ]

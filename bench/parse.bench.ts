@@ -28,6 +28,7 @@ import {
   createHugeLineDripFixture,
   createIdentifiedEventFixture,
   createIdleStreamFixture,
+  createInvalidLineDripFixture,
   createLargeMultilineDataFixture,
   createMultibyteFixture,
   createNamedEventFixture,
@@ -55,6 +56,7 @@ const FIXTURES = {
   multibyte: materialize(createMultibyteFixture({count: 128})),
   heartbeat: materialize(createHeartbeatFixture({count: 64})),
   'idle-stream': materialize(createIdleStreamFixture({count: 512})),
+  'invalid-line-drip': materialize(createInvalidLineDripFixture({count: 512})),
   'huge-line-drip': materialize(
     createHugeLineDripFixture({payloadSize: 256 * 1024, avgChunkSize: 4}),
   ),
@@ -74,6 +76,7 @@ const CASES: CaseName[] = [
   'multibyte',
   'heartbeat',
   'idle-stream',
+  'invalid-line-drip',
   'huge-line-drip',
   'small-chunk',
   'large-multiline-data',

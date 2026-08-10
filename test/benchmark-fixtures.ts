@@ -27,6 +27,8 @@ import {MULTIBYTE_EMOJIS, MULTIBYTE_LINES} from './multibyte.ts'
  *     open — no newlines until a real event eventually arrives. Exercises the
  *     incomplete-line buffer under worst-case growth (each feed rescans the full buffer
  *     for `\r`/`\n`).
+ *   - invalid-line-drip: an invalid field name streamed in tiny chunks with no terminator
+ *     until a real event eventually arrives. Exercises early invalid-line discard.
  *   - huge-line-drip: a single large `data:` payload streamed in tiny variable-size chunks
  *     with no terminator until the very end. Direct probe for the per-feed `prefix + chunk`
  *     concatenation pattern, which is O(N²) in total bytes when the line spans many chunks.
@@ -278,6 +280,29 @@ export function createIdleStreamFixture(options: FixtureOptions = {}): Benchmark
 
   // The long accumulated comment is emitted via onComment (not tracked here), so the only
   // event produced is the final `data: finally`.
+  return {
+    chunks,
+    events: [{id: undefined, event: undefined, data: 'finally'}],
+  }
+}
+
+/**
+ * An invalid field line dripped across many `feed()` calls, with no newline terminator
+ * until a real event eventually arrives.
+ *
+ * This is the malformed-stream sibling of `idle-stream`: the parser should discard the
+ * invalid line once it knows the field name cannot become valid, without retaining the
+ * rest of the line in memory.
+ */
+export function createInvalidLineDripFixture(options: FixtureOptions = {}): BenchmarkFixture {
+  const count = options.count ?? 512
+
+  const chunks = ['n']
+  for (let i = 0; i < count; i++) {
+    chunks.push('o')
+  }
+  chunks.push('\ndata: finally\n\n')
+
   return {
     chunks,
     events: [{id: undefined, event: undefined, data: 'finally'}],

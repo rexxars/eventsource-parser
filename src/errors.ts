@@ -16,12 +16,12 @@ export class ParseError extends Error {
   type: ErrorType
 
   /**
-   * In the case of an unknown field encountered in the stream, this will be the field name.
+   * In the case of a completed unknown field encountered in the stream, this will be the field name.
    */
   field?: string | undefined
 
   /**
-   * In the case of an unknown field encountered in the stream, this will be the value of the field.
+   * In the case of a completed unknown field encountered in the stream, this will be the value of the field.
    */
   value?: string | undefined
 
