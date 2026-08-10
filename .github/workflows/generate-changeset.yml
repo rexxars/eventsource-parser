@@ -17,14 +17,16 @@ jobs:
   generate-changeset:
     name: Generate changeset
     runs-on: ubuntu-latest
-    # Dependency bots are covered by dependency-changesets.yml, and `no changeset`
-    # is the escape hatch for changes that shouldn't be released on their own.
+    # The version pull request consumes changesets rather than adding them, dependency
+    # bots are covered by dependency-changesets.yml, and `no changeset` is the escape
+    # hatch for changes that shouldn't be released on their own.
     #
     # Pull requests from forks are skipped: GITHUB_TOKEN cannot push to a fork's
     # branch. Swap in a GitHub App token (see actions/create-github-app-token) if
     # they should be covered too.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
+      !startsWith(github.event.pull_request.head.ref, 'changeset-release/') &&
       github.actor != 'dependabot[bot]' &&
       github.actor != 'renovate[bot]' &&
       !contains(github.event.pull_request.labels.*.name, 'dependencies') &&
