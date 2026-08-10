@@ -1,0 +1,30 @@
+name: Dependency changesets
+
+# Dependency bots don't add changesets to their pull requests, so add one for them,
+# derived from the conventional commit message the bot used.
+on:
+  pull_request_target:
+    types: [opened, synchronize, labeled]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  changeset:
+    name: Add changeset
+    runs-on: ubuntu-latest
+    if: >-
+      github.actor == 'dependabot[bot]' ||
+      github.actor == 'renovate[bot]' ||
+      contains(github.event.pull_request.labels.*.name, 'dependencies')
+    permissions:
+      contents: write # push the changeset commit to the pull request branch
+      pull-requests: read # read the changed files of the pull request
+    steps:
+      - uses: mscharley/dependency-changesets-action@v1.2.5
+        with:
+          use-conventional-commits: true
+          commit-message: 'chore(deps): add changeset for dependency update'

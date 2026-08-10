@@ -1,6 +1,5 @@
 {
   "$schema": "./node_modules/knip/schema.json",
   "entry": ["package.config.ts"],
-  "ignoreFiles": ["./stream.js"],
-  "ignoreDependencies": ["@sanity/semantic-release-preset"]
+  "ignoreFiles": ["./stream.js"]
 }
