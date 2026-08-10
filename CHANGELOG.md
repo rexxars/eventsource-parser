@@ -5,6 +5,12 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.1.1](https://github.com/rexxars/eventsource-parser/compare/v3.1.0...v3.1.1) (2026-08-10)
+
+### Bug Fixes
+
+- `id:` line containing a NULL character wiping the buffered event id ([#34](https://github.com/rexxars/eventsource-parser/issues/34)) ([48d24f8](https://github.com/rexxars/eventsource-parser/commit/48d24f8f43f861dac6e81847bd6973909676bc71))
+
 ## [3.1.0](https://github.com/rexxars/eventsource-parser/compare/v3.0.8...v3.1.0) (2026-05-27)
 
 ### Features
