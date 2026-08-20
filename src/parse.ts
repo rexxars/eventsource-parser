@@ -11,11 +11,6 @@ const CR = 13
 const SPACE = 32
 const MAX_FIELD_PREFIX_LENGTH = 6
 
-// oxlint-disable-next-line no-unused-vars
-function noop(_arg: unknown) {
-  // intentional noop
-}
-
 /**
  * Creates a new EventSource parser.
  *
@@ -32,7 +27,7 @@ export function createParser(config: ParserConfig): EventSourceParser {
     )
   }
 
-  const {onEvent = noop, onError = noop, onRetry = noop, onComment, maxBufferSize} = config
+  const {maxBufferSize, onComment, onError, onEvent, onId, onRetry} = config
 
   // Trailing bytes from prior `feed()` calls that did not yet form a complete line.
   // Stored as an array of fragments and only joined when a line terminator arrives.
@@ -244,7 +239,7 @@ export function createParser(config: ParserConfig): EventSourceParser {
     eventType = undefined
     skippingLine = false
     skipNextLineFeed = false
-    onError(
+    onError?.(
       new ParseError(`Buffered data exceeded max buffer size of ${maxBufferSize} characters`, {
         type: 'max-buffer-size-exceeded',
       }),
@@ -274,8 +269,11 @@ export function createParser(config: ParserConfig): EventSourceParser {
         // and reset the buffered fields. This is hoisted out of `parseLine` because
         // it's the single most common line shape after `data:` lines.
         if (searchIndex === lfIndex) {
+          if (id !== undefined) {
+            onId?.(id)
+          }
           if (dataLines > 0) {
-            onEvent({id, event: eventType, data})
+            onEvent?.({id, event: eventType, data})
           }
           id = undefined
           data = ''
@@ -298,7 +296,10 @@ export function createParser(config: ParserConfig): EventSourceParser {
           // typical single-line SSE event (ChatGPT-style streams, etc.) and is
           // hot enough to be worth the duplication.
           if (dataLines === 0 && chunk.charCodeAt(lfIndex + 1) === LF) {
-            onEvent({id, event: eventType, data: value})
+            if (id !== undefined) {
+              onId?.(id)
+            }
+            onEvent?.({id, event: eventType, data: value})
             id = undefined
             data = ''
             eventType = undefined
@@ -452,9 +453,9 @@ export function createParser(config: ParserConfig): EventSourceParser {
         // integer in base ten, and set the event stream's reconnection time to that integer.
         // Otherwise, ignore the field.
         if (/^\d+$/.test(value)) {
-          onRetry(parseInt(value, 10))
+          onRetry?.(parseInt(value, 10))
         } else {
-          onError(
+          onError?.(
             new ParseError(`Invalid \`retry\` value: "${value}"`, {
               type: 'invalid-retry',
               value,
@@ -465,7 +466,7 @@ export function createParser(config: ParserConfig): EventSourceParser {
         break
       default:
         // Otherwise, the field is ignored.
-        onError(
+        onError?.(
           new ParseError(
             `Unknown field "${field.length > 20 ? `${field.slice(0, 20)}…` : field}"`,
             {type: 'unknown-field', field, value, line},
@@ -476,8 +477,12 @@ export function createParser(config: ParserConfig): EventSourceParser {
   }
 
   function dispatchEvent() {
+    if (id !== undefined) {
+      onId?.(id)
+    }
+
     if (dataLines > 0) {
-      onEvent({
+      onEvent?.({
         id,
         event: eventType,
         data,

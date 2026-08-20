@@ -43,6 +43,23 @@ test('can use `EventSourceParserStream`', async () => {
   }
 })
 
+test('reports IDs from blocks without data', async () => {
+  const onId = vi.fn()
+  const response = new Response('id: 42\n\ndata: hello\n\n')
+  if (!response.body) {
+    throw new Error('No body')
+  }
+
+  const eventStream = response.body
+    .pipeThrough(new TextDecoderStream())
+    .pipeThrough(new EventSourceParserStream({onId}))
+    .getReader()
+
+  await eventStream.read()
+  expect(onId).toHaveBeenCalledOnce()
+  expect(onId).toHaveBeenCalledWith('42')
+})
+
 test('maxBufferSize: terminates the stream when onError is `terminate`', async () => {
   const response = new Response(`data: ${'x'.repeat(1024)}`)
   if (!response.body) {

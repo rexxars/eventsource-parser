@@ -360,6 +360,51 @@ test('stream with `id` field containing a NULL character', async () => {
   mock.expectNextMessage({id: '123', event: undefined, data: 'hello'})
 })
 
+test('reports an `id` from a block without data when the block is dispatched', () => {
+  const onEvent = vi.fn()
+  const onId = vi.fn()
+  const parser = createParser({onEvent, onId})
+
+  parser.feed('id: 42\n')
+  expect(onId).not.toHaveBeenCalled()
+
+  parser.feed('\n')
+  expect(onId).toHaveBeenCalledOnce()
+  expect(onId).toHaveBeenCalledWith('42')
+  expect(onEvent).not.toHaveBeenCalled()
+
+  parser.feed('id: bad\0id\n\n')
+  expect(onId).toHaveBeenCalledTimes(1)
+
+  parser.feed('id:\n\n')
+  expect(onId).toHaveBeenNthCalledWith(2, '')
+})
+
+test('reports an `id` before dispatching an event from the same block', () => {
+  const calls: string[] = []
+  const parser = createParser({
+    onId: (id) => calls.push(`id: ${id}`),
+    onEvent: (event) => calls.push(`event: ${event.data}`),
+  })
+
+  parser.feed('id: 42\ndata: hello\n\n')
+
+  expect(calls).toStrictEqual(['id: 42', 'event: hello'])
+})
+
+test.each([
+  ['CR', '\r'],
+  ['CRLF', '\r\n'],
+])('reports an `id` from a block using %s line endings', (_name, lineEnd) => {
+  const onId = vi.fn()
+  const parser = createParser({onId})
+
+  parser.feed(`id: 42${lineEnd}${lineEnd}`)
+
+  expect(onId).toHaveBeenCalledOnce()
+  expect(onId).toHaveBeenCalledWith('42')
+})
+
 test('stream with incorrect retry fields', async () => {
   const mock = getParseResultMock()
   const parser = createParser(mock.callbacks)

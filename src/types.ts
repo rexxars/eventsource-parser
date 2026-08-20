@@ -65,6 +65,17 @@ export interface EventSourceMessage {
  */
 export interface ParserCallbacks {
   /**
+   * Callback for an `id` field when a blank line ends an event block.
+   *
+   * Called once with the last valid `id` value in the block, whether or not the block contains a
+   * `data` field. When the block produces an event, `onId` is called before `onEvent`. An empty
+   * `id` field is reported as an empty string. An `id` field containing U+0000 is ignored.
+   *
+   * @param id - The value of the last valid `id` field in the block
+   */
+  onId?: ((id: string) => void) | undefined
+
+  /**
    * Callback for when a new event/message is parsed from the stream.
    * This is the main callback that clients will use to handle incoming messages.
    *
