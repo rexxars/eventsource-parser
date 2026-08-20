@@ -10,9 +10,9 @@ You create an instance of the parser, and _feed_ it chunks of data - partial or 
 
 Other modules in the EventSource family:
 
-- [eventsource-client](https://github.com/rexxars/eventsource-client): modern, feature rich eventsource client for browsers, node.js, bun, deno and other modern JavaScript environments.
+- [eventsource](https://github.com/eventsource/eventsource): Cross-runtime polyfill for the WhatWG EventSource API.
 - [eventsource-encoder](https://github.com/rexxars/eventsource-encoder): encodes messages in the EventSource/Server-Sent Events format.
-- [eventsource](https://github.com/eventsource/eventsource): Node.js polyfill for the WhatWG EventSource API.
+- [eventsource-client](https://github.com/rexxars/eventsource-client): modern, feature rich eventsource client for browsers, node.js, bun, deno and other modern JavaScript environments.
 
 > [!NOTE]
 > Migrating from eventsource-parser 1.x/2.x? See the [migration guide](./MIGRATE-v3.md).
