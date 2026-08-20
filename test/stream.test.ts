@@ -56,7 +56,8 @@ test('reports IDs from blocks without data', async () => {
     .getReader()
 
   await eventStream.read()
-  expect(onId).toHaveBeenCalledExactlyOnceWith('42')
+  expect(onId).toHaveBeenCalledOnce()
+  expect(onId).toHaveBeenCalledWith('42')
 })
 
 test('maxBufferSize: terminates the stream when onError is `terminate`', async () => {

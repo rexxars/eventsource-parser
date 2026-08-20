@@ -369,7 +369,8 @@ test('reports an `id` from a block without data when the block is dispatched', (
   expect(onId).not.toHaveBeenCalled()
 
   parser.feed('\n')
-  expect(onId).toHaveBeenCalledExactlyOnceWith('42')
+  expect(onId).toHaveBeenCalledOnce()
+  expect(onId).toHaveBeenCalledWith('42')
   expect(onEvent).not.toHaveBeenCalled()
 
   parser.feed('id: bad\0id\n\n')
@@ -400,7 +401,8 @@ test.each([
 
   parser.feed(`id: 42${lineEnd}${lineEnd}`)
 
-  expect(onId).toHaveBeenCalledExactlyOnceWith('42')
+  expect(onId).toHaveBeenCalledOnce()
+  expect(onId).toHaveBeenCalledWith('42')
 })
 
 test('stream with incorrect retry fields', async () => {
