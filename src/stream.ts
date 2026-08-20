@@ -8,6 +8,17 @@ import type {EventSourceMessage, EventSourceParser} from './types.ts'
  */
 export interface StreamOptions {
   /**
+   * Callback for an `id` field when a blank line ends an event block.
+   *
+   * Called once with the last valid `id` value in the block, whether or not the block contains a
+   * `data` field. When the block produces an event, `onId` is called before the event is enqueued.
+   * An empty `id` field is reported as an empty string. An `id` field containing U+0000 is ignored.
+   *
+   * @param id - The value of the last valid `id` field in the block
+   */
+  onId?: ((id: string) => void) | undefined
+
+  /**
    * Behavior when a parsing error occurs.
    *
    * - A custom function can be provided to handle the error.
@@ -65,7 +76,7 @@ export interface StreamOptions {
  * @public
  */
 export class EventSourceParserStream extends TransformStream<string, EventSourceMessage> {
-  constructor({onError, onRetry, onComment, maxBufferSize}: StreamOptions = {}) {
+  constructor({onError, onRetry, onComment, onId, maxBufferSize}: StreamOptions = {}) {
     let parser!: EventSourceParser
 
     super({
@@ -92,6 +103,7 @@ export class EventSourceParserStream extends TransformStream<string, EventSource
           },
           onRetry,
           onComment,
+          onId,
           maxBufferSize,
         })
       },

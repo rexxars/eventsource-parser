@@ -47,6 +47,26 @@ parser.reset()
 console.log('Done!')
 ```
 
+### Event IDs
+
+Use `onId` if you need to track event IDs for reconnection. The parser calls it once when a blank
+line ends a block containing a valid `id` field. It runs for blocks with or without `data`, and it
+runs before `onEvent` when the same block produces an event. An empty `id` field is reported as an
+empty string. An `id` field containing U+0000 is ignored.
+
+```ts
+let lastEventId = ''
+
+const parser = createParser({
+  onId(id) {
+    lastEventId = id
+  },
+  onEvent(event) {
+    // …
+  },
+})
+```
+
 ### Retry intervals
 
 If the server sends a `retry` field in the event stream, the parser will call any `onRetry` callback specified to the `createParser` function:
@@ -141,7 +161,7 @@ const eventStream = response.body
   .pipeThrough(new EventSourceParserStream())
 ```
 
-The stream constructor accepts a subset of the `createParser` options (`onComment`, `onRetry`, `maxBufferSize`) plus an `onError` that can either be a function or set to `'terminate'` to error the stream on parse errors. Events are delivered through the stream itself rather than via an `onEvent` callback:
+The stream constructor accepts a subset of the `createParser` options (`onComment`, `onId`, `onRetry`, `maxBufferSize`) plus an `onError` that can either be a function or set to `'terminate'` to error the stream on parse errors. Events are delivered through the stream itself rather than via an `onEvent` callback:
 
 ```ts
 new EventSourceParserStream({
