@@ -1,5 +1,12 @@
 # 📓 Changelog
 
+## 4.1.0
+
+### Minor Changes
+
+- [#39](https://github.com/rexxars/eventsource-parser/pull/39) [`0482048`](https://github.com/rexxars/eventsource-parser/commit/0482048fb66d4ded8e60c61ffc2fceaeba79eaeb) Thanks [@rexxars](https://github.com/rexxars)! - Added an `onId` callback that reports ID fields when an event block ends, including blocks without
+  data.
+
 ## 4.0.0
 
 ### Major Changes
