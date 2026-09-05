@@ -66,7 +66,7 @@ export function createParser(config: ParserConfig): EventSourceParser {
    * so callers can pass arbitrary slices of the stream without worrying about
    * line boundaries.
    *
-   * Per the SSE spec, one leading UTF-8 BOM at the start of the very first chunk
+   * Per the SSE spec, one leading UTF-8 BOM at the start of the first non-empty chunk
    * is stripped before parsing. This handles both the raw 3-byte form (0xEF 0xBB
    * 0xBF) and a single decoded U+FEFF, so a leading BOM is ignored regardless of
    * how the caller decoded the bytes.
@@ -81,6 +81,7 @@ export function createParser(config: ParserConfig): EventSourceParser {
     }
 
     if (isFirstChunk) {
+      if (chunk.length === 0) return
       isFirstChunk = false
       // Strip one leading UTF-8 BOM from the start of the stream, if present.
       // (Per the spec, this is only valid at the very start of the stream.)
