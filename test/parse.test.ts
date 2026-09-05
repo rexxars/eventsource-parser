@@ -183,6 +183,39 @@ test('a decoded U+FEFF (from an `ignoreBOM` decoder) is stripped like the raw 3-
   mock.expectNextMessage({data: 'first\nsecond'})
 })
 
+test.each([1, 2])('a BOM split after byte %i survives empty decoder output', (split) => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError})
+  const bytes = new TextEncoder().encode('\uFEFFdata: first\n\ndata: second\n\n')
+
+  for (let run = 0; run < 2; run++) {
+    const decoder = new TextDecoder('utf-8', {ignoreBOM: true})
+    const firstChunk = decoder.decode(bytes.subarray(0, split), {stream: true})
+    expect(firstChunk).toBe('')
+    parser.feed(firstChunk)
+    parser.feed('')
+    parser.feed(decoder.decode(bytes.subarray(split)))
+
+    expect(onEvent.mock.calls.map(([event]) => event.data)).toEqual(['first', 'second'])
+    expect(onError).not.toHaveBeenCalled()
+    parser.reset()
+    onEvent.mockClear()
+  }
+})
+
+test('empty chunks do not make a later BOM a leading BOM', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError})
+  parser.feed('data: first\n\n')
+  parser.feed('')
+  parser.feed('\uFEFFdata: ignored\n\ndata: last\n\n')
+
+  expect(onEvent.mock.calls.map(([event]) => event.data)).toEqual(['first', 'last'])
+  expect(onError).toHaveBeenCalledOnce()
+})
+
 test('stream using carriage returns', async () => {
   const mock = getParseResultMock()
   const parser = createParser({onEvent: mock.onParse})
