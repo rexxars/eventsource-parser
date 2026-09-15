@@ -204,6 +204,60 @@ test.each([1, 2])('a BOM split after byte %i survives empty decoder output', (sp
   }
 })
 
+test.each([
+  {chunks: ['\xEF', '\xBB', '\xBF']},
+  {chunks: ['\xEF\xBB', '\xBF']},
+  {chunks: ['\xEF', '\xBB\xBF']},
+  {chunks: ['\xEF', '\xBB', '\xBFdata: first\n\n']},
+  {chunks: ['\xEF\xBB', '\xBFdata: first\n\n']},
+  {chunks: ['\xEF', '\xBB\xBFdata: first\n\n']},
+])('a raw BOM split as $chunks is stripped', ({chunks}) => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError})
+
+  for (let run = 0; run < 2; run++) {
+    for (const chunk of chunks) {
+      parser.feed('')
+      parser.feed(chunk)
+    }
+    if (!chunks.at(-1)?.endsWith('\n\n')) parser.feed('data: first\n\n')
+    parser.feed('data: second\n\n')
+    expect(onEvent.mock.calls.map(([event]) => event.data)).toEqual(['first', 'second'])
+    expect(onError).not.toHaveBeenCalled()
+    parser.reset()
+    onEvent.mockClear()
+  }
+})
+
+test.each(['\xEF', '\xEF\xBB'])('an incomplete raw BOM %j is preserved on mismatch', (prefix) => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError})
+  parser.feed(prefix)
+  parser.feed('data: ignored\n\ndata: last\n\n')
+  expect(onEvent.mock.calls.map(([event]) => event.data)).toEqual(['last'])
+  expect(onError).toHaveBeenCalledWith(expect.objectContaining({field: `${prefix}data`}))
+})
+
+test.each(['\xEF', '\xEF\xBB'])('reset discards an incomplete raw BOM %j', (prefix) => {
+  const onEvent = vi.fn()
+  const parser = createParser({onEvent})
+  parser.feed(prefix)
+  parser.reset()
+  parser.feed('\uFEFFdata: first\n\n')
+  expect(onEvent.mock.calls.map(([event]) => event.data)).toEqual(['first'])
+})
+
+test.each(['\uFEFF', '\xEF\xBB\xBF'])('only one leading BOM %j is stripped', (bom) => {
+  const onEvent = vi.fn()
+  const parser = createParser({onEvent})
+  for (const char of bom) parser.feed(char)
+  parser.feed('')
+  parser.feed(`${bom}data: ignored\n\ndata: last\n\n`)
+  expect(onEvent.mock.calls.map(([event]) => event.data)).toEqual(['last'])
+})
+
 test('empty chunks do not make a later BOM a leading BOM', () => {
   const onEvent = vi.fn()
   const onError = vi.fn()

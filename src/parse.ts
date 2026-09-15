@@ -41,7 +41,8 @@ export function createParser(config: ParserConfig): EventSourceParser {
   // `maxBufferSize` check doesn't have to walk the fragment list on every feed.
   let pendingFragmentsLength = 0
 
-  let isFirstChunk = true
+  // Empty or partial leading BOM; undefined once the BOM check is complete.
+  let bomPrefix: string | undefined = ''
   let id: string | undefined
   let data = ''
   let dataLines = 0
@@ -66,8 +67,8 @@ export function createParser(config: ParserConfig): EventSourceParser {
    * so callers can pass arbitrary slices of the stream without worrying about
    * line boundaries.
    *
-   * Per the SSE spec, one leading UTF-8 BOM at the start of the first non-empty chunk
-   * is stripped before parsing. This handles both the raw 3-byte form (0xEF 0xBB
+   * Per the SSE spec, one leading UTF-8 BOM is stripped before parsing,
+   * even when split across chunks. This handles both the raw 3-byte form (0xEF 0xBB
    * 0xBF) and a single decoded U+FEFF, so a leading BOM is ignored regardless of
    * how the caller decoded the bytes.
    *
@@ -80,25 +81,17 @@ export function createParser(config: ParserConfig): EventSourceParser {
       )
     }
 
-    if (isFirstChunk) {
-      if (chunk.length === 0) return
-      isFirstChunk = false
-      // Strip one leading UTF-8 BOM from the start of the stream, if present.
-      // (Per the spec, this is only valid at the very start of the stream.)
-      // Two representations can reach us depending on how the caller decoded the
-      // bytes: a single decoded U+FEFF (e.g. a `TextDecoder` created with
-      // `ignoreBOM`) or the raw 3-byte sequence (0xEF 0xBB 0xBF, e.g. a latin1 or
-      // passthrough decode). Both are stripped so a leading BOM is ignored
-      // regardless of decode path.
-      if (chunk.charCodeAt(0) === 0xfeff) {
-        chunk = chunk.slice(1)
-      } else if (
-        chunk.charCodeAt(0) === 0xef &&
-        chunk.charCodeAt(1) === 0xbb &&
-        chunk.charCodeAt(2) === 0xbf
-      ) {
-        chunk = chunk.slice(3)
+    if (bomPrefix !== undefined) {
+      chunk = bomPrefix + chunk
+      // Wait only while the input could still be a raw BOM. Empty chunks must
+      // not finish the check, and a mismatched prefix must remain ordinary input.
+      if (chunk === '' || chunk === '\xEF' || chunk === '\xEF\xBB') {
+        bomPrefix = chunk
+        return
       }
+      bomPrefix = undefined
+      // Strip exactly one leading BOM, in decoded or raw byte-valued form.
+      chunk = chunk.replace(/^(?:\uFEFF|\xEF\xBB\xBF)/, '')
     }
 
     // Rare resume states from a prior chunk boundary: a pending `\r\n` split or a
@@ -502,7 +495,7 @@ export function createParser(config: ParserConfig): EventSourceParser {
       parseLine(incompleteLine, 0, incompleteLine.length)
     }
 
-    isFirstChunk = true
+    bomPrefix = ''
     id = undefined
     data = ''
     dataLines = 0
