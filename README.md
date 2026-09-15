@@ -1,6 +1,6 @@
 # eventsource-parser
 
-[![npm version](https://npmx.dev/api/registry/badge/version/eventsource-parser)](https://npmx.dev/package/eventsource-parser) [![num dependendencies](https://npmx.dev/api/registry/badge/dependencies/eventsource-parser)](https://npmx.dev/package/eventsource-parser) [![npm weekly downloads](https://npmx.dev/api/registry/badge/downloads-week/eventsource-parser)](https://npmx.dev/package/eventsource-parser) [![install size](https://npmx.dev/api/registry/badge/size/eventsource-parser)](https://npmx.dev/package/eventsource-parser)
+[![npm version](https://npmx.dev/api/registry/badge/version/eventsource-parser?color=69E3EE)](https://npmx.dev/package/eventsource-parser) [![num dependendencies](https://npmx.dev/api/registry/badge/dependencies/eventsource-parser)](https://npmx.dev/package/eventsource-parser) [![npm weekly downloads](https://npmx.dev/api/registry/badge/downloads-week/eventsource-parser)](https://npmx.dev/package/eventsource-parser) [![install size](https://npmx.dev/api/registry/badge/size/eventsource-parser?color=00C16A)](https://npmx.dev/package/eventsource-parser)
 
 A streaming parser for [server-sent events/eventsource](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events), without any assumptions about how the actual stream of data is retrieved. It is intended to be a building block for [clients](https://github.com/rexxars/eventsource-client) and polyfills in javascript environments such as browsers, node.js and deno.
 
