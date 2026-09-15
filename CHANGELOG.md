@@ -1,5 +1,11 @@
 # 📓 Changelog
 
+## 4.1.1
+
+### Patch Changes
+
+- [#41](https://github.com/rexxars/eventsource-parser/pull/41) [`dd82654`](https://github.com/rexxars/eventsource-parser/commit/dd82654e9e6147a1aa4b103926651e22ac518944) Thanks [@sahiinthehood](https://github.com/sahiinthehood)! - Handle leading byte-order marks across empty input chunks and split raw UTF-8 BOM chunks so the first event is not dropped.
+
 ## 4.1.0
 
 ### Minor Changes
