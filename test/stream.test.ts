@@ -97,3 +97,19 @@ test('maxBufferSize: invokes custom onError function and errors the stream', asy
   expect(error).toBeInstanceOf(ParseError)
   expect(error).toMatchObject({type: 'max-buffer-size-exceeded'})
 })
+
+test('maxBufferSize: errors before dispatching overflowing data in one chunk', async () => {
+  const onError = vi.fn()
+  const response = new Response('data: 1234\ndata: 5678\n\ndata: later\n\n')
+  if (!response.body) {
+    throw new Error('No body')
+  }
+
+  const eventStream = response.body
+    .pipeThrough(new TextDecoderStream())
+    .pipeThrough(new EventSourceParserStream({maxBufferSize: 8, onError}))
+    .getReader()
+
+  await expect(eventStream.read()).rejects.toMatchObject({type: 'max-buffer-size-exceeded'})
+  expect(onError).toHaveBeenCalledTimes(1)
+})

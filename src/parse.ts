@@ -196,6 +196,7 @@ export function createParser(config: ParserConfig): EventSourceParser {
     // make skip mode swallow the next line.
     if (trailing.charCodeAt(trailing.length - 1) === CR) {
       parseLine(trailing, 0, trailing.length - 1)
+      if (checkBufferSize()) return
       skipNextLineFeed = true
       return
     }
@@ -221,8 +222,9 @@ export function createParser(config: ParserConfig): EventSourceParser {
   }
 
   function checkBufferSize() {
-    if (maxBufferSize === undefined) return
-    if (pendingFragmentsLength + data.length <= maxBufferSize) return
+    if (terminated) return true
+    if (maxBufferSize === undefined) return false
+    if (pendingFragmentsLength + data.length <= maxBufferSize) return false
 
     terminated = true
     pendingFragments.length = 0
@@ -238,6 +240,7 @@ export function createParser(config: ParserConfig): EventSourceParser {
         type: 'max-buffer-size-exceeded',
       }),
     )
+    return true
   }
 
   /**
@@ -319,6 +322,7 @@ export function createParser(config: ParserConfig): EventSourceParser {
           // per-line parser, which handles the SSE field grammar in detail.
           parseLine(chunk, searchIndex, lfIndex)
         }
+        if (checkBufferSize()) return ''
         searchIndex = lfIndex + 1
         lfIndex = chunk.indexOf('\n', searchIndex)
       }
@@ -353,6 +357,7 @@ export function createParser(config: ParserConfig): EventSourceParser {
       }
 
       parseLine(chunk, searchIndex, lineEnd)
+      if (checkBufferSize()) return ''
       searchIndex = lineEnd + 1
       // If we just consumed a `\r` and the next char is `\n`, skip it so the
       // pair is treated as a single terminator rather than an empty line.
