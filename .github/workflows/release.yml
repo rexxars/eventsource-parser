@@ -38,17 +38,17 @@ jobs:
       - run: npm ci
 
       - name: Create version PR or publish to npm
-        uses: changesets/action@v1
+        uses: changesets/action@v2.1.2
         with:
-          version: npm run release:version
-          publish: npm run release:publish
-          createGithubReleases: true
+          version-script: npm run release:version
+          publish-script: npm run release:publish
+          create-github-releases: true
           # Conventional commit subjects, so the version pull request and the
           # commit it squashes into main match every other commit in the history
-          title: 'chore: version packages'
-          commit: 'chore: version packages'
-        env:
+          pr-title: 'chore: version packages'
+          commit-message: 'chore: version packages'
           # Used to open the version PR, create GitHub releases and resolve
           # contributors/PR links in the changelog
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        env:
           NPM_CONFIG_PROVENANCE: true
