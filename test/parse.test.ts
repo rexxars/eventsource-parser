@@ -909,6 +909,136 @@ test('maxBufferSize: feed throws after overflow, until reset', () => {
   expect(onEvent).toHaveBeenLastCalledWith({id: undefined, event: undefined, data: 'hello'})
 })
 
+test.each(['\n', '\r\n', '\r'])(
+  'maxBufferSize: stops processing overflowing data within one chunk (%j)',
+  (ending) => {
+    const onEvent = vi.fn()
+    const onError = vi.fn()
+    const onId = vi.fn()
+    const onRetry = vi.fn()
+    const onComment = vi.fn()
+    const parser = createParser({onEvent, onError, onId, onRetry, onComment, maxBufferSize: 8})
+
+    parser.feed(
+      [
+        'id: oversized',
+        'data: 1234',
+        'data: 5678',
+        '',
+        'id: later',
+        'retry: 1000',
+        ': later comment',
+        'data: later',
+        '',
+        '',
+      ].join(ending),
+    )
+
+    expect(onError).toHaveBeenCalledTimes(1)
+    expect(onError.mock.calls[0]?.[0]).toMatchObject({type: 'max-buffer-size-exceeded'})
+    expect(onEvent).not.toHaveBeenCalled()
+    expect(onId).not.toHaveBeenCalled()
+    expect(onRetry).not.toHaveBeenCalled()
+    expect(onComment).not.toHaveBeenCalled()
+    expect(() => parser.feed('data: next\n\n')).toThrow(/max buffer size/)
+
+    parser.reset()
+    parser.feed(['data: next', '', ''].join(ending))
+    expect(onEvent).toHaveBeenCalledTimes(1)
+    expect(onEvent).toHaveBeenLastCalledWith({id: undefined, event: undefined, data: 'next'})
+    expect(onError).toHaveBeenCalledTimes(1)
+  },
+)
+
+test.each(['\n', '\r\n', '\r'])(
+  'maxBufferSize: checks completed data after joining a pending field (%j)',
+  (ending) => {
+    const onEvent = vi.fn()
+    const onError = vi.fn()
+    const parser = createParser({onEvent, onError, maxBufferSize: 16})
+
+    parser.feed(`data: 12345678${ending}da`)
+    expect(onError).not.toHaveBeenCalled()
+    parser.feed(`ta: 12345678${ending}${ending}`)
+
+    expect(onError).toHaveBeenCalledTimes(1)
+    expect(onError.mock.calls[0]?.[0]).toMatchObject({type: 'max-buffer-size-exceeded'})
+    expect(onEvent).not.toHaveBeenCalled()
+  },
+)
+
+test.each(['\n', '\r\n', '\r'])(
+  'maxBufferSize: dispatches multiple buffered events at the exact limit (%j)',
+  (ending) => {
+    const onEvent = vi.fn()
+    const onError = vi.fn()
+    const parser = createParser({onEvent, onError, maxBufferSize: 9})
+
+    parser.feed(['data: 1234', 'data: 5678', '', 'data: 1234', 'data: 5678', '', ''].join(ending))
+
+    expect(onError).not.toHaveBeenCalled()
+    expect(onEvent).toHaveBeenCalledTimes(2)
+    expect(onEvent).toHaveBeenLastCalledWith({id: undefined, event: undefined, data: '1234\n5678'})
+  },
+)
+
+test.each(['\n', '\r\n', '\r'])(
+  'maxBufferSize: counts the separator added by a bare data field (%j)',
+  (ending) => {
+    const onEvent = vi.fn()
+    const onError = vi.fn()
+    const parser = createParser({onEvent, onError, maxBufferSize: 4})
+
+    parser.feed(['data: 1234', 'data', '', ''].join(ending))
+
+    expect(onError).toHaveBeenCalledTimes(1)
+    expect(onEvent).not.toHaveBeenCalled()
+  },
+)
+
+test('maxBufferSize: preserves events dispatched before an overflow', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError, maxBufferSize: 8})
+
+  parser.feed('data: first\n\ndata: 1234\ndata: 5678\n\ndata: later\n\n')
+
+  expect(onEvent).toHaveBeenCalledTimes(1)
+  expect(onEvent).toHaveBeenCalledWith({id: undefined, event: undefined, data: 'first'})
+  expect(onError).toHaveBeenCalledTimes(1)
+})
+
+test('maxBufferSize: checks data terminated by a trailing carriage return', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn()
+  const parser = createParser({onEvent, onError, maxBufferSize: 8})
+
+  parser.feed('data: 1234\r')
+  parser.feed('\ndata: 5678\r')
+
+  expect(onError).toHaveBeenCalledTimes(1)
+  expect(onEvent).not.toHaveBeenCalled()
+  expect(() => parser.feed('\n\r')).toThrow(/max buffer size/)
+  parser.reset()
+  parser.feed('data: next\r\r')
+  expect(onEvent).toHaveBeenCalledTimes(1)
+  expect(onEvent).toHaveBeenCalledWith({id: undefined, event: undefined, data: 'next'})
+})
+
+test('maxBufferSize: discards the overflowing chunk when onError resets the parser', () => {
+  const onEvent = vi.fn()
+  const onError = vi.fn(() => parser.reset())
+  const parser = createParser({onEvent, onError, maxBufferSize: 8})
+
+  parser.feed('data: 1234\ndata: 5678\n\ndata: discarded')
+
+  expect(onEvent).not.toHaveBeenCalled()
+  expect(onError).toHaveBeenCalledTimes(1)
+  parser.feed('data: next\n\n')
+  expect(onEvent).toHaveBeenCalledTimes(1)
+  expect(onEvent).toHaveBeenCalledWith({id: undefined, event: undefined, data: 'next'})
+})
+
 test('maxBufferSize: not triggered when events dispatch within the limit', () => {
   const onEvent = vi.fn()
   const onError = vi.fn()
