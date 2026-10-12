@@ -1,5 +1,11 @@
 # 📓 Changelog
 
+## 4.1.2
+
+### Patch Changes
+
+- [#44](https://github.com/rexxars/eventsource-parser/pull/44) [`12fc382`](https://github.com/rexxars/eventsource-parser/commit/12fc382affa914f8deb150ea4af8e0018637fc51) Thanks [@bensynapse](https://github.com/bensynapse)! - fix: enforce buffer limits while processing a chunk
+
 ## 4.1.1
 
 ### Patch Changes
