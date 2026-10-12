@@ -112,7 +112,7 @@ export function createParser(config: ParserConfig): EventSourceParser {
       if (trailing !== '') {
         storeTrailing(trailing)
       }
-      checkBufferSize()
+      checkForBufferOverflow()
       return
     }
 
@@ -133,7 +133,7 @@ export function createParser(config: ParserConfig): EventSourceParser {
       }
       pendingFragments.push(chunk)
       pendingFragmentsLength += chunk.length
-      checkBufferSize()
+      checkForBufferOverflow()
       return
     }
 
@@ -144,7 +144,7 @@ export function createParser(config: ParserConfig): EventSourceParser {
     pendingFragments.length = 0
     pendingFragmentsLength = 0
     storeTrailing(processLines(input))
-    checkBufferSize()
+    checkForBufferOverflow()
   }
 
   // Out-of-line handler for the rare post-boundary states. `skipNextLineFeed` means a
@@ -196,7 +196,7 @@ export function createParser(config: ParserConfig): EventSourceParser {
     // make skip mode swallow the next line.
     if (trailing.charCodeAt(trailing.length - 1) === CR) {
       parseLine(trailing, 0, trailing.length - 1)
-      if (checkBufferSize()) return
+      if (checkForBufferOverflow()) return
       skipNextLineFeed = true
       return
     }
@@ -221,7 +221,9 @@ export function createParser(config: ParserConfig): EventSourceParser {
     )
   }
 
-  function checkBufferSize() {
+  // Returns true when parsing must stop for the current chunk (the parser was already
+  // terminated or has just overflowed), and false when processing can continue.
+  function checkForBufferOverflow() {
     if (terminated) return true
     if (maxBufferSize === undefined) return false
     if (pendingFragmentsLength + data.length <= maxBufferSize) return false
@@ -322,7 +324,7 @@ export function createParser(config: ParserConfig): EventSourceParser {
           // per-line parser, which handles the SSE field grammar in detail.
           parseLine(chunk, searchIndex, lfIndex)
         }
-        if (checkBufferSize()) return ''
+        if (checkForBufferOverflow()) return ''
         searchIndex = lfIndex + 1
         lfIndex = chunk.indexOf('\n', searchIndex)
       }
@@ -357,7 +359,7 @@ export function createParser(config: ParserConfig): EventSourceParser {
       }
 
       parseLine(chunk, searchIndex, lineEnd)
-      if (checkBufferSize()) return ''
+      if (checkForBufferOverflow()) return ''
       searchIndex = lineEnd + 1
       // If we just consumed a `\r` and the next char is `\n`, skip it so the
       // pair is treated as a single terminator rather than an empty line.
