@@ -22,6 +22,7 @@ import {bench, do_not_optimize, run} from 'mitata'
 import {createParser} from '../src/parse.ts'
 import type {EventSourceParser} from '../src/types.ts'
 import {
+  createCarriageReturnFixture,
   createDataOnlyFixture,
   createEdgeCasesFixture,
   createHeartbeatFixture,
@@ -33,6 +34,7 @@ import {
   createMultibyteFixture,
   createNamedEventFixture,
   createSmallChunkFixture,
+  createSparseCarriageReturnFixture,
 } from '../test/benchmark-fixtures.ts'
 
 interface Fixture {
@@ -51,6 +53,8 @@ function materialize(fixture: {chunks: string[]; events: unknown[]}): Fixture {
 // to swamp per-iter setup overhead but stays small enough to not dominate the total run time.
 const FIXTURES = {
   'data-only': materialize(createDataOnlyFixture({count: 256})),
+  'carriage-return': materialize(createCarriageReturnFixture({count: 4096})),
+  'sparse-carriage-return': materialize(createSparseCarriageReturnFixture({count: 4096})),
   'named-event': materialize(createNamedEventFixture({count: 128})),
   'identified-event': materialize(createIdentifiedEventFixture({count: 128})),
   multibyte: materialize(createMultibyteFixture({count: 128})),
@@ -71,6 +75,8 @@ type CaseName = keyof typeof FIXTURES
 
 const CASES: CaseName[] = [
   'data-only',
+  'carriage-return',
+  'sparse-carriage-return',
   'named-event',
   'identified-event',
   'multibyte',

@@ -110,6 +110,18 @@ export function createDataOnlyFixture(options: FixtureOptions = {}): BenchmarkFi
   return {chunks, events}
 }
 
+/** Many CR-terminated lines in one chunk, with no LF to find. */
+export function createCarriageReturnFixture(options: FixtureOptions = {}): BenchmarkFixture {
+  const {chunks, events} = createDataOnlyFixture(options)
+  return {chunks: [chunks.join('').replace(/\n/g, '\r')], events}
+}
+
+/** Many LF-terminated lines before a single distant CR in the same chunk. */
+export function createSparseCarriageReturnFixture(options: FixtureOptions = {}): BenchmarkFixture {
+  const {chunks, events} = createDataOnlyFixture(options)
+  return {chunks: [chunks.join('') + '\r'], events}
+}
+
 /**
  * A stream of named, multi-field events.
  *
