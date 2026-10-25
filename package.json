@@ -1,6 +1,6 @@
 {
   "name": "eventsource-parser",
-  "version": "4.1.2",
+  "version": "4.1.3",
   "description": "Streaming, source-agnostic EventSource/Server-Sent Events parser",
   "keywords": [
     "eventsource",

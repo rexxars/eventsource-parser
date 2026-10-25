@@ -1,5 +1,11 @@
 # 📓 Changelog
 
+## 4.1.3
+
+### Patch Changes
+
+- [#47](https://github.com/rexxars/eventsource-parser/pull/47) [`06e67ff`](https://github.com/rexxars/eventsource-parser/commit/06e67ff565560c4232107529cbe15ee1439f7498) Thanks [@Claire-ovo](https://github.com/Claire-ovo)! - Avoid quadratic scanning of chunks containing many CR-terminated lines or a distant CR after LF-terminated lines.
+
 ## 4.1.2
 
 ### Patch Changes
