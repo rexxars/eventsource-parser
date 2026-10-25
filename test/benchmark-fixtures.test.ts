@@ -3,6 +3,7 @@ import {describe, expect, test} from 'vitest'
 import {createParser} from '../src/parse.ts'
 import type {EventSourceMessage} from '../src/types.ts'
 import {
+  createCarriageReturnFixture,
   createDataOnlyFixture,
   createEdgeCasesFixture,
   createHeartbeatFixture,
@@ -12,6 +13,7 @@ import {
   createMultibyteFixture,
   createNamedEventFixture,
   createSmallChunkFixture,
+  createSparseCarriageReturnFixture,
 } from './benchmark-fixtures.ts'
 
 type FixtureFactory = () => {chunks: string[]; events: EventSourceMessage[]}
@@ -21,6 +23,8 @@ const SEED = 0xc0ffee
 
 const fixtures: Array<[string, FixtureFactory]> = [
   ['data-only', () => createDataOnlyFixture({seed: SEED, count: 24})],
+  ['carriage-return', () => createCarriageReturnFixture({seed: SEED, count: 24})],
+  ['sparse-carriage-return', () => createSparseCarriageReturnFixture({seed: SEED, count: 24})],
   ['named-event', () => createNamedEventFixture({seed: SEED, count: 16})],
   ['identified-event', () => createIdentifiedEventFixture({seed: SEED, count: 16})],
   ['multibyte', () => createMultibyteFixture({seed: SEED, count: 20})],
@@ -32,6 +36,22 @@ const fixtures: Array<[string, FixtureFactory]> = [
 ]
 
 describe('benchmark fixtures', () => {
+  test.each([createCarriageReturnFixture, createSparseCarriageReturnFixture])(
+    '%s preserves events across chunk boundaries',
+    (createFixture) => {
+      const {chunks, events: expected} = createFixture({seed: SEED, count: 8})
+      const input = chunks.join('')
+      for (const size of [1, 2, 7, 1024]) {
+        const actual: EventSourceMessage[] = []
+        const parser = createParser({onEvent: (event) => actual.push(event)})
+        for (let offset = 0; offset < input.length; offset += size) {
+          parser.feed(input.slice(offset, offset + size))
+        }
+        expect(actual).toEqual(expected)
+      }
+    },
+  )
+
   test.each(fixtures)('%s parses into the expected events', (_name, factory) => {
     const {chunks, events: expected} = factory()
 

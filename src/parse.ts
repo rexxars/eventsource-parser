@@ -334,10 +334,9 @@ export function createParser(config: ParserConfig): EventSourceParser {
     // Slow path: the chunk contains at least one `\r`, so lines may be terminated
     // by `\r`, `\n`, or `\r\n`. We locate the next terminator by looking at both
     // the nearest `\r` and `\n` and picking whichever comes first.
+    let crIndex = chunk.indexOf('\r', searchIndex)
+    let lfIndex = chunk.indexOf('\n', searchIndex)
     while (searchIndex < chunk.length) {
-      const crIndex = chunk.indexOf('\r', searchIndex)
-      const lfIndex = chunk.indexOf('\n', searchIndex)
-
       let lineEnd = -1
       if (crIndex !== -1 && lfIndex !== -1) {
         lineEnd = crIndex < lfIndex ? crIndex : lfIndex
@@ -365,6 +364,14 @@ export function createParser(config: ParserConfig): EventSourceParser {
       // pair is treated as a single terminator rather than an empty line.
       if (chunk.charCodeAt(searchIndex - 1) === CR && chunk.charCodeAt(searchIndex) === LF) {
         searchIndex++
+      }
+
+      // Reuse unconsumed matches and failed searches instead of rescanning the suffix.
+      if (crIndex !== -1 && crIndex < searchIndex) {
+        crIndex = chunk.indexOf('\r', searchIndex)
+      }
+      if (lfIndex !== -1 && lfIndex < searchIndex) {
+        lfIndex = chunk.indexOf('\n', searchIndex)
       }
     }
 
